@@ -1,0 +1,24 @@
+name = "generalized-riemann-integral"
+version = "0.1.0"
+keywords = ["math"]
+defaultTargets = ["Main"]
+
+[leanOptions]
+pp.unicode.fun = true # pretty-prints `fun a ↦ b`
+relaxedAutoImplicit = false
+weak.linter.mathlibStandardSet = true
+maxSynthPendingDepth = 3
+
+[[require]]
+name = "mathlib"
+scope = "leanprover-community"
+rev = "v4.32.2"
+
+[[require]]
+name = "Paperproof"
+git = "https://github.com/Paper-Proof/paperproof.git"
+subDir = "lean"
+rev = "main"
+
+[[lean_lib]]
+name = "Main"
