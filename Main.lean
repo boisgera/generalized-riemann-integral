@@ -137,7 +137,25 @@ theorem vol_eq_upper_sub_lower (box : Box ι) :
 -- Maybe some stuff to reorder the components of a partition(?)
 -- AAAAAAAH! I guess that it's not **that** hard by induction on the
 -- number of boxes in the partition? But still we're gonna need
--- some subpartitions I guess. Mmmmm
+-- some subpartitions I guess. Mmmmm when I remove a box from a
+-- partition, what's left is a partition but of a set that may
+-- not be a box.
+--
+-- I think that I need to prove that if π₁ and π₂ are two
+-- prepartitions of I which are disjoint and whose union π is
+-- a partition of I, then the sum over π₁ plus the sum of π₂
+-- is the vol of I. I could work by induction on the number of
+-- elements in π₂: it's trivial if π₂ is empty and otherwise
+-- I can transfer the term from π₂ to π₁ while preserving the
+-- total sum. Nah, I miss the main thing here, that the sum of
+-- the vol for two contiguous boxes "collapses" well.
+--
+-- There is no general result that works that to begin with?
+-- If `vol ]a, b] + vol ]b, c] = vol ]a, c]` then the stuff
+-- is box-additive? Nah, that's two 1-dimensional to make sense
+-- in general...
+--
+-- Do I need to have a look at biUnion?
 theorem vol_additive (I : WithTop (Box ι)) (J : Box ι) :
     ↑J ≤ I
     → ∀ (π : BoxIntegral.Prepartition J), π.IsPartition
