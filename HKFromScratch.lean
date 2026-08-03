@@ -112,8 +112,9 @@ Being an interval in EReal is being order-connected:
 
 -- TODO: being order-connected means
 
--- Canonical representation by construction.
--- Note: "inf" and "sup" are the right names because the intervals are nonempty
+-- Canonical representation: by construction, "=" works as intended.
+-- Note: "inf" and "sup" are the right names because the intervals are nonempty.
+-- (they are the infimum and the supremeum)
 inductive Interval where
   | empty : Interval
   | ioo (inf : EReal) (sup : EReal) (h : inf < sup) : Interval
@@ -121,13 +122,42 @@ inductive Interval where
   | ico (inf : EReal) (sup : EReal) (h : inf < sup) : Interval
   | icc (inf : EReal) (sup : EReal) (h : inf ≤ sup) : Interval
 
+def Interval.toSet (I : Interval) : Set EReal :=
+  match I with
+      | .empty => ∅
+      | .ioo inf sup _ => Set.Ioo inf sup
+      | .ioc inf sup _ => Set.Ioc inf sup
+      | .ico inf sup _ => Set.Ico inf sup
+      | .icc inf sup _ => Set.Icc inf sup
+
 instance : Coe Interval (Set EReal) where
-  coe i := match i with
-    | .empty => ∅
-    | .ioo inf sup _ => Set.Ioo inf sup
-    | .ioc inf sup _ => Set.Ioc inf sup
-    | .ico inf sup _ => Set.Ico inf sup
-    | .icc inf sup _ => Set.Icc inf sup
+  coe := Interval.toSet
+
+def Interval.mem (I : Interval) (x : EReal) : Prop :=
+  match I with
+      | .empty => False
+      | .ioo inf sup _ => inf < x ∧ x < sup
+      | .ioc inf sup _ => inf < x ∧ x ≤ sup
+      | .ico inf sup _ => inf ≤ x ∧ x < sup
+      | .icc inf sup _ => inf ≤ x ∧ x ≤ sup
+
+instance : Membership EReal Interval where
+  mem := Interval.mem
+
+theorem Interval_mem_iff_Set_mem (I : Interval) (x : EReal) :
+    x ∈ I ↔ x ∈ (↑I : Set EReal) := by
+  conv =>
+    lhs ; simp only [Membership.mem]
+  simp only [Interval.mem.eq_def]
+  simp only [Interval.toSet]
+  simp only [Set.Ioo, Set.Ioc, Set.Ico, Set.Icc]
+  change (match I with
+   | Interval.empty => x ∈ (∅ : Set EReal)
+   | Interval.ioo inf sup h => x ∈ {y | inf < y ∧ y < sup}
+   | Interval.ioc inf sup h => x ∈ {y | inf < y ∧ y ≤ sup}
+   | Interval.ico inf sup h => x ∈ {y | inf ≤ y ∧ y < sup}
+   | Interval.icc inf sup h => x ∈ {y | inf ≤ y ∧ y ≤ sup})
+  grind
 
 #check Pairwise
 -- Pairwise.{u_1} {α : Type u_1} (r : α → α → Prop) : Prop
@@ -159,6 +189,12 @@ I am fucked. OK, let's do this again with an empty set maybe?
 /-!
 `intervals` is not automatically coerce to Set (Set EReal) since there
 are two levels of coercion there and Lean does not compose them automatically.
+-/
+
+
+/-!
+Actually I have to look at Fintype instead of finset to get a finite indexed
+familiy of intervals.
 -/
 
 /-!
