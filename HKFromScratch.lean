@@ -114,14 +114,16 @@ Being an interval in EReal is being order-connected:
 
 -- Canonical representation by construction.
 -- Note: "inf" and "sup" are the right names because the intervals are nonempty
-inductive NonEmptyInterval where
-  | ioo (inf : EReal) (sup : EReal) (h : inf < sup) : NonEmptyInterval
-  | ioc (inf : EReal) (sup : EReal) (h : inf < sup) : NonEmptyInterval
-  | ico (inf : EReal) (sup : EReal) (h : inf < sup) : NonEmptyInterval
-  | icc (inf : EReal) (sup : EReal) (h : inf ≤ sup) : NonEmptyInterval
+inductive Interval where
+  | empty : Interval
+  | ioo (inf : EReal) (sup : EReal) (h : inf < sup) : Interval
+  | ioc (inf : EReal) (sup : EReal) (h : inf < sup) : Interval
+  | ico (inf : EReal) (sup : EReal) (h : inf < sup) : Interval
+  | icc (inf : EReal) (sup : EReal) (h : inf ≤ sup) : Interval
 
-instance : Coe NonEmptyInterval (Set EReal) where
+instance : Coe Interval (Set EReal) where
   coe i := match i with
+    | .empty => ∅
     | .ioo inf sup _ => Set.Ioo inf sup
     | .ioc inf sup _ => Set.Ioc inf sup
     | .ico inf sup _ => Set.Ico inf sup
@@ -134,7 +136,54 @@ instance : Coe NonEmptyInterval (Set EReal) where
 -- def Pairwise.{u_1} : {α : Type u_1} → (α → α → Prop) → Prop :=
 -- fun {α} r ↦ ∀ ⦃i j : α⦄, i ≠ j → r i j
 
-structure Partition where
-  intervals : Finset NonEmptyInterval
+/-!
+TODO: study this `Pairwise` stuff and how it's done in BoxIntegral.
+AFAICT the issue I have is that my "collection" is a (fin)set when
+`Pairwise` is meant for types.
+-/
 
-  disjoints: Pairwise (fun A B => Disjoint A B)
+#print Set.Pairwise
+-- protected def Set.Pairwise.{u_1} : {α : Type u_1} → Set α → (α → α → Prop) → Prop :=
+-- fun {α} s r ↦ ∀ ⦃x : α⦄, x ∈ s → ∀ ⦃y : α⦄, y ∈ s → x ≠ y → r x y
+
+#print Disjoint
+-- def Disjoint.{u_1} : {α : Type u_1} → [inst : PartialOrder α] → [OrderBot α] → α → α → Prop :=
+-- fun {α} [PartialOrder α] [OrderBot α] a b ↦ ∀ ⦃x : α⦄, x ≤ a → x ≤ b → x ≤ ⊥
+
+/-!
+Either I need a shittone of coercions, or I need to define a partial order
+on Interval that has a ⊥. But since we don't allow the empty set,
+I am fucked. OK, let's do this again with an empty set maybe?
+-/
+
+/-!
+`intervals` is not automatically coerce to Set (Set EReal) since there
+are two levels of coercion there and Lean does not compose them automatically.
+-/
+
+/-!
+Finite partition made of intervals. Maybe work out the stuff with sets and
+finite sets and coerce/export to intervals afterwards?
+-/
+structure Partition where
+  intervals : Finset Interval
+  nonEmpty : ∀ I ∈ intervals, Set.Nonempty (I : Set EReal)
+  pairwiseDisjoints : ∀ I ∈ intervals, ∀ J ∈ intervals,
+    I ≠ J → (I : Set EReal) ∩ (J : Set EReal) = ∅
+
+-- TODO: declare membership.
+
+def Partition.toSetOfSets (p : Partition) : Set (Set EReal) :=
+  (p.intervals : Set Interval) -- first coerce : Finset Interval → Set interval
+  |> Set.image (fun (I : Interval) => (I : Set EReal)) -- internal coercion
+
+instance : Coe (Partition) (Set (Set EReal)) where
+  coe := Partition.toSetOfSets
+
+def Partition.sUnion (p : Partition) : Set EReal :=
+  ⋃₀ p -- coercion works...
+
+-- read as "is a partition of"
+def PartitionOf (p : Partition) (s : Set EReal) : Prop := ⋃₀ p = s
+
+end HK
