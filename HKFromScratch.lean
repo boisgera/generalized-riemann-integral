@@ -151,10 +151,12 @@ theorem Interval_mem_iff_Set_mem (I : Interval) (x : EReal) :
   simp only [Interval.mem.eq_def]
   simp only [Interval.toSet]
   simp only [Set.Ioo, Set.Ioc, Set.Ico, Set.Icc]
-  -- grind works but I'd like to learn how to simplify this
-  -- "manually"
-  grind
-
+  cases I
+  · simp only
+    exact Set.mem_empty_iff_false x
+  repeat
+    simp only
+    rw [Set.mem_setOf]
 
 #check Pairwise
 -- Pairwise.{u_1} {α : Type u_1} (r : α → α → Prop) : Prop
