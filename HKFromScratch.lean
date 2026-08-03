@@ -151,13 +151,10 @@ theorem Interval_mem_iff_Set_mem (I : Interval) (x : EReal) :
   simp only [Interval.mem.eq_def]
   simp only [Interval.toSet]
   simp only [Set.Ioo, Set.Ioc, Set.Ico, Set.Icc]
-  change (match I with
-   | Interval.empty => x ∈ (∅ : Set EReal)
-   | Interval.ioo inf sup h => x ∈ {y | inf < y ∧ y < sup}
-   | Interval.ioc inf sup h => x ∈ {y | inf < y ∧ y ≤ sup}
-   | Interval.ico inf sup h => x ∈ {y | inf ≤ y ∧ y < sup}
-   | Interval.icc inf sup h => x ∈ {y | inf ≤ y ∧ y ≤ sup})
+  -- grind works but I'd like to learn how to simplify this
+  -- "manually"
   grind
+
 
 #check Pairwise
 -- Pairwise.{u_1} {α : Type u_1} (r : α → α → Prop) : Prop
