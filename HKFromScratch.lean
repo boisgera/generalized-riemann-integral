@@ -135,6 +135,46 @@ instance : Coe Interval (Set EReal) where
 
 -- TODO: support ∅ notation (and prob more isEmpty stuff and co.)
 
+instance : EmptyCollection Interval where
+  emptyCollection := Interval.empty
+
+-- TODO : pick the middle, execept when a bound is ⊥ or ⊤, then be smarter
+-- to ensure that whatever the case, the element is in the interval.
+def midLike (I : Interval) (nonEmpty : I ≠ ∅) : EReal :=
+  match I with
+  | .empty => -- impossible
+    simp [EmptyCollection.emptyCollection] at nonEmpty
+    sorry -- impossible
+  | .ioo inf sup inf_lt_sup => sorry
+  | .ioc inf sup inf_lt_sup => sorry
+  | .ico inf sup inf_lt_sup => sorry
+  | .icc inf sup inf_le_sup => sorry
+
+-- Then prove the property (it is in the original interval)
+
+
+
+theorem Interval.empty_iff_empty_coe (I : Interval) : I = ∅ ↔ (↑I : Set EReal) = ∅ := by
+  constructor
+  · intro I_empty
+    simp only [EmptyCollection.emptyCollection] at I_empty
+    rw [I_empty]
+    simp only [Interval.toSet.eq_def]
+  · intro h
+    rw [Interval.toSet.eq_def] at h
+    match I with
+    | .empty => rfl
+    | .ioo inf sup inf_lt_sup =>
+      dsimp at h
+      let mid := (inf + sup) / 2 -- Nah we need to special-case ⊥ and ⊤
+      have h1 : inf < mid := by grind
+      have h2 : mid < sup := by grind
+      sorry
+    | .ioc inf sup inf_lt_sup => sorry
+    | .ico inf sup inf_lt_sup => sorry
+    | .icc inf sup inf_le_sup => sorry
+-- TODO: instance NonEmpty when appropriate
+
 noncomputable def Interval.inf : Interval → EReal
   | .empty => ⊤
   | .ioo inf _ _ => inf
@@ -155,7 +195,7 @@ theorem Interval.inf_eq_sInf_coe (I : Interval) : I.inf = sInf ↑I := by
 theorem Interval.sup_eq_sSup_coe (I : Interval) : I.sup = sSup ↑I := by
   sorry
 /-!
-TODO: Show that we capture *exactly* the order connected sets of EReal,
+TODO: Show that we capture *exactly* the ordered connected sets of EReal,
 but in an explicit way.
 -/
 #check Set.ordConnected_Ioo
@@ -180,6 +220,15 @@ theorem interval_iff_ordConnected (s : Set EReal) :
     -- if not empty, find inf and sup
     -- show that only 4 cases are possible
     sorry
+
+--- Interval.ofSet when provided with a set and a prove or order connectedness
+noncomputable def Interval.ofSet (s : Set EReal) (ordConnected : s.OrdConnected)
+    : Interval :=
+  s
+    |> interval_iff_ordConnected
+    |>.mpr ordConnected
+    |> Classical.choose
+
 
 
 /-!
