@@ -114,13 +114,13 @@ Being an interval in EReal is being order-connected:
 
 -- Canonical representation: by construction, "=" works as intended.
 -- Note: "inf" and "sup" are the right names because the intervals are nonempty.
--- (they are the infimum and the supremeum)
+-- (they are the infimum and the supremum. TODO: prove this!)
 inductive Interval where
-  | empty : Interval
-  | ioo (inf : EReal) (sup : EReal) (h : inf < sup) : Interval
-  | ioc (inf : EReal) (sup : EReal) (h : inf < sup) : Interval
-  | ico (inf : EReal) (sup : EReal) (h : inf < sup) : Interval
-  | icc (inf : EReal) (sup : EReal) (h : inf ≤ sup) : Interval
+  | empty
+  | ioo (inf : EReal) (sup : EReal) (inf_lt_sup : inf < sup)
+  | ioc (inf : EReal) (sup : EReal) (inf_lt_sup : inf < sup)
+  | ico (inf : EReal) (sup : EReal) (inf_lt_sup : inf < sup)
+  | icc (inf : EReal) (sup : EReal) (inf_le_sup : inf ≤ sup)
 
 def Interval.toSet (I : Interval) : Set EReal :=
   match I with
@@ -133,10 +133,54 @@ def Interval.toSet (I : Interval) : Set EReal :=
 instance : Coe Interval (Set EReal) where
   coe := Interval.toSet
 
+-- TODO: support ∅ notation (and prob more isEmpty stuff and co.)
+
+noncomputable def Interval.inf : Interval → EReal
+  | .empty => ⊤
+  | .ioo inf _ _ => inf
+  | .ioc inf _ _ => inf
+  | .ico inf _ _ => inf
+  | .icc inf _ _ => inf
+
+noncomputable def Interval.sup : Interval → EReal
+  | .empty => ⊥
+  | .ioo _ sup _ => sup
+  | .ioc _ sup _ => sup
+  | .ico _ sup _ => sup
+  | .icc _ sup _ => sup
+
+theorem Interval.inf_eq_sInf_coe (I : Interval) : I.inf = sInf ↑I := by
+  sorry
+
+theorem Interval.sup_eq_sSup_coe (I : Interval) : I.sup = sSup ↑I := by
+  sorry
 /-!
 TODO: Show that we capture *exactly* the order connected sets of EReal,
 but in an explicit way.
 -/
+#check Set.ordConnected_Ioo
+
+theorem interval_iff_ordConnected (s : Set EReal) :
+  (∃ (I : Interval), s = I.toSet) ↔ s.OrdConnected := by
+  constructor
+  · intro ⟨I, hI⟩
+    rw [Interval.toSet.eq_def] at hI
+    rw [hI]; clear hI
+    match I with
+    | .empty => simp only; exact Set.ordConnected_empty
+    | .ioo inf sup _ =>
+      dsimp only ; exact Set.ordConnected_Ioo
+    | .ioc inf sup _ =>
+      dsimp only ; exact Set.ordConnected_Ioc
+    | .ico inf sup _ =>
+      dsimp only ; exact Set.ordConnected_Ico
+    | .icc inf sup _ =>
+      dsimp only ; exact Set.ordConnected_Icc
+  · -- TODO: distinguish empty or not
+    -- if not empty, find inf and sup
+    -- show that only 4 cases are possible
+    sorry
+
 
 /-!
 TODO: Nonempty (when not .empty)
