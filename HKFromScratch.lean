@@ -133,6 +133,20 @@ def Interval.toSet (I : Interval) : Set EReal :=
 instance : Coe Interval (Set EReal) where
   coe := Interval.toSet
 
+/-!
+TODO: Show that we capture *exactly* the order connected sets of EReal,
+but in an explicit way.
+-/
+
+/-!
+TODO: Nonempty (when not .empty)
+-/
+
+/-!
+Here I define the operation using the specifics of intervals
+and prove with a theorem that it matches how sets behave.
+What's the argument for this approach instead of the reverse? And the cons?
+-/
 def Interval.mem (I : Interval) (x : EReal) : Prop :=
   match I with
       | .empty => False
@@ -158,6 +172,17 @@ theorem Interval_mem_iff_Set_mem (I : Interval) (x : EReal) :
     simp only
     rw [Set.mem_setOf]
 
+def Interval.Subset (I J : Interval) : Prop :=
+  sorry
+
+instance : HasSubset Interval where
+  Subset := Interval.Subset
+
+
+
+-- instance : HasSubset Interval where
+--   Subset :
+
 #check Pairwise
 -- Pairwise.{u_1} {α : Type u_1} (r : α → α → Prop) : Prop
 
@@ -179,32 +204,19 @@ AFAICT the issue I have is that my "collection" is a (fin)set when
 -- def Disjoint.{u_1} : {α : Type u_1} → [inst : PartialOrder α] → [OrderBot α] → α → α → Prop :=
 -- fun {α} [PartialOrder α] [OrderBot α] a b ↦ ∀ ⦃x : α⦄, x ≤ a → x ≤ b → x ≤ ⊥
 
-/-!
-Either I need a shittone of coercions, or I need to define a partial order
-on Interval that has a ⊥. But since we don't allow the empty set,
-I am fucked. OK, let's do this again with an empty set maybe?
--/
 
-/-!
-`intervals` is not automatically coerce to Set (Set EReal) since there
-are two levels of coercion there and Lean does not compose them automatically.
--/
-
-
-/-!
-Actually I have to look at Fintype instead of finset to get a finite indexed
-familiy of intervals.
--/
-
-/-!
-Finite partition made of intervals. Maybe work out the stuff with sets and
-finite sets and coerce/export to intervals afterwards?
--/
 structure Partition where
   intervals : Finset Interval
   nonEmpty : ∀ I ∈ intervals, Set.Nonempty (I : Set EReal)
   pairwiseDisjoints : ∀ I ∈ intervals, ∀ J ∈ intervals,
     I ≠ J → (I : Set EReal) ∩ (J : Set EReal) = ∅
+
+structure Partition' where
+  intervals : Finset Interval
+  nonEmpty : ∀ I ∈ intervals, Set.Nonempty (I : Set EReal)
+  pairwiseDisjoints : ∀ I ∈ intervals, ∀ J ∈ intervals,
+    I ≠ J → Disjoint (↑I : Set EReal) (↑J : Set EReal)
+
 
 -- TODO: declare membership.
 
