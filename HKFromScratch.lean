@@ -326,4 +326,13 @@ def Partition.sUnion (p : Partition) : Set EReal :=
 -- read as "is a partition of"
 def PartitionOf (p : Partition) (s : Set EReal) : Prop := ⋃₀ p = s
 
+/-!
+TODO: consider the collection of all finite unions of intervals,
+show that we have a ring (stable by ∪ and \) and even an algebra
+(contains the full set).
+
+Note that here we won't require `vol` to be a pre-measure
+(we don't want to have anything to do with σ-additivity)
+-/
+
 end HK
