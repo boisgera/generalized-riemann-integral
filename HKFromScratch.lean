@@ -7,18 +7,16 @@ namespace HK
 Aimed reach:
   - HK style only,
   - 1D only, but possibly unbounded,
-  - Integration for/based on every Radon measure
+  - ~~Integration for/based on every Radon measure
     (locally finite, no way to deal with the counting measure for
-    example)
+    example)~~ no, scratch that, let's start with Lebesgue only
 
 TODO:
   - We work on the space [-∞, +∞],
   - Our "boxes" are exactly the non-empty intervals, inc. non-bounded,
   - Partitions are really partitions,
-  - "volumes" associated to intervals live are into [0, +∞]
-  - "volumes"
-  - Riemann sum cancel by definition every term with and infinite
-    volume.
+  - "volumes" are scrached, we hard-code length of an interval,
+  - Riemann sum cancel by definition every term with an unbounded interval.
 -/
 
 
@@ -48,7 +46,7 @@ noncomputable def one : EReal := (1 : Real)
 #eval repr (3.14 : Real)
 -- Real.ofCauchy (sorry /- (157 : Rat)/50, (157 : Rat)/50, (157 : Rat)/50, (157 : Rat)/50, (157 : Rat)/50, (157 : Rat)/50, (157 : Rat)/50, (157 : Rat)/50, (157 : Rat)/50, (157 : Rat)/50, ... -/)
 
--- ... but extended real numbers support nothing.
+-- ... but extended real numbers support nothing. (That's fine)
 
 -- noncomputable: can't be #eval'd but can be #reduce'd
 #reduce one
@@ -84,6 +82,7 @@ I can use Icc, Ioo, etc. as usual since there is a linear order on EReal.
 def I : Set EReal := Set.Icc (0 : EReal) (1 : EReal)
 
 #check Set.Icc
+-- Set.Icc.{u_1} {α : Type u_1} [Preorder α] (a b : α) : Set α
 
 #reduce I
 -- fun x ↦ 0 ≤ x ∧ x ≤ 1
@@ -95,32 +94,29 @@ example : Set.Icc (⊥ : EReal) (⊤ : EReal) = Set.univ := by
   rw [iff_true]
   exact And.intro bot_le le_top
 
+
+
 /-!
-Being an interval in EReal is being order-connected:
+Definition of Intervals
+--------------------------------------------------------------------------------
 -/
 
-#print Set.OrdConnected
--- class Set.OrdConnected.{u_1} {α : Type u_1} [Preorder α] (s : Set α) : Prop
--- ...
---   Set.OrdConnected.out' : ∀ ⦃x : α⦄, x ∈ s → ∀ ⦃y : α⦄, y ∈ s → Set.Icc x y ⊆ s
---   ...
-
-#check Set.OrdConnected.out
--- Set.OrdConnected.out.{u_1} {α : Type u_1} [Preorder α] {s : Set α}
--- (h : s.OrdConnected) ⦃x : α⦄ :
--- x ∈ s → ∀ ⦃y : α⦄, y ∈ s → Set.Icc x y ⊆ s
-
--- TODO: being order-connected means
-
--- Canonical representation: by construction, "=" works as intended.
+-- Canonical representation of intervals: by construction, "=" works as intended.
 -- Note: "inf" and "sup" are the right names because the intervals are nonempty.
--- (they are the infimum and the supremum. TODO: prove this!)
+-- (they are the infimum and the supremum ; see later)
 inductive Interval where
   | empty
   | ioo (inf : EReal) (sup : EReal) (inf_lt_sup : inf < sup)
   | ioc (inf : EReal) (sup : EReal) (inf_lt_sup : inf < sup)
   | ico (inf : EReal) (sup : EReal) (inf_lt_sup : inf < sup)
   | icc (inf : EReal) (sup : EReal) (inf_le_sup : inf ≤ sup)
+
+/-!
+Intervals as Sets
+--------------------------------------------------------------------------------
+
+Declare an automatic coercion of intervals as sets.
+-/
 
 def Interval.toSet (I : Interval) : Set EReal :=
   match I with
@@ -133,26 +129,89 @@ def Interval.toSet (I : Interval) : Set EReal :=
 instance : Coe Interval (Set EReal) where
   coe := Interval.toSet
 
--- TODO: support ∅ notation (and prob more isEmpty stuff and co.)
+/-!
+Infimum and Supremum
+--------------------------------------------------------------------------------
+-/
+
+
+#print CompleteLinearOrder
+-- TODO: pick what we need, e.g.
+-- ...
+-- SupSet.sSup : Set α → α
+-- CompleteSemilatticeSup.isLUB_sSup : ∀ (s : Set α), IsLUB s (sSup s)
+-- InfSet.sInf : Set α → α
+-- CompleteSemilatticeInf.isGLB_sInf : ∀ (s : Set α), IsGLB s (sInf s)
+
+#synth CompleteLinearOrder EReal
+-- instCompleteLinearOrderEReal
+
+noncomputable def Interval.inf : Interval → EReal
+  | .empty => ⊤
+  | .ioo inf _ _ => inf
+  | .ioc inf _ _ => inf
+  | .ico inf _ _ => inf
+  | .icc inf _ _ => inf
+
+noncomputable def Interval.sup : Interval → EReal
+  | .empty => ⊥
+  | .ioo _ sup _ => sup
+  | .ioc _ sup _ => sup
+  | .ico _ sup _ => sup
+  | .icc _ sup _ => sup
+
+theorem Interval.inf_eq_sInf_coe (I : Interval) : I.inf = sInf ↑I := by
+  sorry
+
+theorem Interval.sup_eq_sSup_coe (I : Interval) : I.sup = sSup ↑I := by
+  sorry
+
+
+
+/-!
+Support ∅ notation (and prob more isEmpty stuff and co.)
+--------------------------------------------------------------------------------
+-/
+
+/-!
+TODO: Membership first
+-/
+
+/-!
+Is is not completely trivial to show that empty as an interval iff empty as a set.
+What I think of now is deal with sInf and sSup first, then use a generic result
+that we can find a value between (strictly) them when they are not equal.
+The structure is CompleteLattice on EReal.
+-/
 
 instance : EmptyCollection Interval where
   emptyCollection := Interval.empty
 
--- TODO : pick the middle, execept when a bound is ⊥ or ⊤, then be smarter
+#print DenselyOrdered
+-- class DenselyOrdered.{u_5} (α : Type u_5) [LT α] : Prop
+-- number of parameters: 2
+-- fields:
+--   DenselyOrdered.dense : ∀ (a₁ a₂ : α), a₁ < a₂ → ∃ a, a₁ < a ∧ a < a₂
+-- constructor:
+--   DenselyOrdered.mk.{u_5} {α : Type u_5} [LT α] (dense : ∀ (a₁ a₂ : α), a₁ < a₂ → ∃ a, a₁ < a ∧ a < a₂) :
+--     DenselyOrdered α
+
+#synth DenselyOrdered EReal
+-- instDenselyOrderedEReal
+
+
+
+-- TODO : pick the "middle", except when a bound is ⊥ or ⊤, then be smarter
 -- to ensure that whatever the case, the element is in the interval.
-def midLike (I : Interval) (nonEmpty : I ≠ ∅) : EReal :=
+def Interval.pick (I : Interval) (nonEmpty : I ≠ ∅) : EReal :=
   match I with
-  | .empty => -- impossible
-    simp [EmptyCollection.emptyCollection] at nonEmpty
-    sorry -- impossible
+  | .empty => nomatch nonEmpty
   | .ioo inf sup inf_lt_sup => sorry
   | .ioc inf sup inf_lt_sup => sorry
   | .ico inf sup inf_lt_sup => sorry
   | .icc inf sup inf_le_sup => sorry
 
 -- Then prove the property (it is in the original interval)
-
-
 
 theorem Interval.empty_iff_empty_coe (I : Interval) : I = ∅ ↔ (↑I : Set EReal) = ∅ := by
   constructor
@@ -175,30 +234,29 @@ theorem Interval.empty_iff_empty_coe (I : Interval) : I = ∅ ↔ (↑I : Set ER
     | .icc inf sup inf_le_sup => sorry
 -- TODO: instance NonEmpty when appropriate
 
-noncomputable def Interval.inf : Interval → EReal
-  | .empty => ⊤
-  | .ioo inf _ _ => inf
-  | .ioc inf _ _ => inf
-  | .ico inf _ _ => inf
-  | .icc inf _ _ => inf
 
-noncomputable def Interval.sup : Interval → EReal
-  | .empty => ⊥
-  | .ioo _ sup _ => sup
-  | .ioc _ sup _ => sup
-  | .ico _ sup _ => sup
-  | .icc _ sup _ => sup
 
-theorem Interval.inf_eq_sInf_coe (I : Interval) : I.inf = sInf ↑I := by
-  sorry
-
-theorem Interval.sup_eq_sSup_coe (I : Interval) : I.sup = sSup ↑I := by
-  sorry
 /-!
-TODO: Show that we capture *exactly* the ordered connected sets of EReal,
-but in an explicit way.
+Connectedness
+--------------------------------------------------------------------------------
+
+Being an interval in EReal is exactly being order-connected:
 -/
+
+#print Set.OrdConnected
+-- class Set.OrdConnected.{u_1} {α : Type u_1} [Preorder α] (s : Set α) : Prop
+-- ...
+--   Set.OrdConnected.out' : ∀ ⦃x : α⦄, x ∈ s → ∀ ⦃y : α⦄, y ∈ s → Set.Icc x y ⊆ s
+--   ...
+
+#check Set.OrdConnected.out
+-- Set.OrdConnected.out.{u_1} {α : Type u_1} [Preorder α] {s : Set α}
+-- (h : s.OrdConnected) ⦃x : α⦄ :
+-- x ∈ s → ∀ ⦃y : α⦄, y ∈ s → Set.Icc x y ⊆ s
+
 #check Set.ordConnected_Ioo
+-- Set.ordConnected_Ioo.{u_1} {α : Type u_1} [Preorder α] {a b : α} :
+-- (Set.Ioo a b).OrdConnected
 
 theorem interval_iff_ordConnected (s : Set EReal) :
   (∃ (I : Interval), s = I.toSet) ↔ s.OrdConnected := by
@@ -296,6 +354,16 @@ AFAICT the issue I have is that my "collection" is a (fin)set when
 #print Disjoint
 -- def Disjoint.{u_1} : {α : Type u_1} → [inst : PartialOrder α] → [OrderBot α] → α → α → Prop :=
 -- fun {α} [PartialOrder α] [OrderBot α] a b ↦ ∀ ⦃x : α⦄, x ≤ a → x ≤ b → x ≤ ⊥
+
+/-!
+TODO: define "NonOverlapping". Think hard about it before ; if we define it
+with references to sets, can we avoid to deal with a huge combinatorial
+cases. Idea: define intersection of intervals to begin with (and check the
+consistency of the def with the sets), then NonOverlapping becomes easy
+(intersection is either empty or Interval.Icc with the same inf and sup)
+-/
+
+
 
 
 structure Partition where
