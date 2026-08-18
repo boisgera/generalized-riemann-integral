@@ -130,13 +130,60 @@ instance : Coe Interval (Set EReal) where
   coe := Interval.toSet
 
 /-!
+Membership
+--------------------------------------------------------------------------------
+-/
+
+
+/-!
+Generally,
+- I define the operations using only elementary constructs for intervals
+- I prove that these definitions match how the operations on intervals-as-sets
+  behave afterwards.
+-/
+def Interval.mem (I : Interval) (x : EReal) : Prop :=
+  match I with
+      | .empty => False
+      | .ioo inf sup _ => inf < x ∧ x < sup
+      | .ioc inf sup _ => inf < x ∧ x ≤ sup
+      | .ico inf sup _ => inf ≤ x ∧ x < sup
+      | .icc inf sup _ => inf ≤ x ∧ x ≤ sup
+
+instance : Membership EReal Interval where
+  mem := Interval.mem
+
+theorem Interval_mem_iff_Set_mem (I : Interval) (x : EReal) :
+    x ∈ I ↔ x ∈ (↑I : Set EReal) := by
+  conv =>
+    lhs ; simp only [Membership.mem]
+  simp only [Interval.mem.eq_def]
+  simp only [Interval.toSet]
+  simp only [Set.Ioo, Set.Ioc, Set.Ico, Set.Icc]
+  cases I
+  · simp only
+    exact Set.mem_empty_iff_false x
+  repeat
+    simp only
+    rw [Set.mem_setOf]
+
+#print HasSubset
+
+def Interval.Subset (I J : Interval) : Prop :=
+  sorry
+
+instance : HasSubset Interval where
+  Subset := Interval.Subset
+
+/-! TODO: check that ⊆ for intervals work for intervals-as-sets -/
+
+
+/-!
 Infimum and Supremum
 --------------------------------------------------------------------------------
 -/
 
 
 #print CompleteLinearOrder
--- TODO: pick what we need, e.g.
 -- ...
 -- SupSet.sSup : Set α → α
 -- CompleteSemilatticeSup.isLUB_sSup : ∀ (s : Set α), IsLUB s (sSup s)
@@ -169,70 +216,70 @@ theorem Interval.sup_eq_sSup_coe (I : Interval) : I.sup = sSup ↑I := by
 
 
 /-!
-Support ∅ notation (and prob more isEmpty stuff and co.)
+Empty (and non-empty) intervals
 --------------------------------------------------------------------------------
 -/
 
-/-!
-TODO: Membership first
--/
-
-/-!
-Is is not completely trivial to show that empty as an interval iff empty as a set.
-What I think of now is deal with sInf and sSup first, then use a generic result
-that we can find a value between (strictly) them when they are not equal.
-The structure is CompleteLattice on EReal.
--/
-
+/-- Support the `∅` notation for `Interval.empty` -/
 instance : EmptyCollection Interval where
   emptyCollection := Interval.empty
 
-#print DenselyOrdered
--- class DenselyOrdered.{u_5} (α : Type u_5) [LT α] : Prop
--- number of parameters: 2
--- fields:
---   DenselyOrdered.dense : ∀ (a₁ a₂ : α), a₁ < a₂ → ∃ a, a₁ < a ∧ a < a₂
--- constructor:
---   DenselyOrdered.mk.{u_5} {α : Type u_5} [LT α] (dense : ∀ (a₁ a₂ : α), a₁ < a₂ → ∃ a, a₁ < a ∧ a < a₂) :
---     DenselyOrdered α
+/-!
+To show that an interval differs from `∅` iff there is an element in it,
+we leverage the (ordered) density of the extended real numbers.
+-/
+
+#check DenselyOrdered.dense
+-- DenselyOrdered.dense.{u_5} {α : Type u_5}
+-- {inst✝ : LT α} [self : DenselyOrdered α]
+-- (a₁ a₂ : α) : a₁ < a₂ → ∃ a, a₁ < a ∧ a < a₂
 
 #synth DenselyOrdered EReal
 -- instDenselyOrderedEReal
 
-
-
--- TODO : pick the "middle", except when a bound is ⊥ or ⊤, then be smarter
--- to ensure that whatever the case, the element is in the interval.
-def Interval.pick (I : Interval) (nonEmpty : I ≠ ∅) : EReal :=
-  match I with
-  | .empty => nomatch nonEmpty
-  | .ioo inf sup inf_lt_sup => sorry
-  | .ioc inf sup inf_lt_sup => sorry
-  | .ico inf sup inf_lt_sup => sorry
-  | .icc inf sup inf_le_sup => sorry
-
--- Then prove the property (it is in the original interval)
-
-theorem Interval.empty_iff_empty_coe (I : Interval) : I = ∅ ↔ (↑I : Set EReal) = ∅ := by
+theorem Interval.nonempty_iff_ne_empty (I : Interval) : I ≠ ∅ ↔ ∃ x, x ∈ I := by
   constructor
-  · intro I_empty
-    simp only [EmptyCollection.emptyCollection] at I_empty
-    rw [I_empty]
-    simp only [Interval.toSet.eq_def]
-  · intro h
-    rw [Interval.toSet.eq_def] at h
+  · intro neEmpty
     match I with
-    | .empty => rfl
-    | .ioo inf sup inf_lt_sup =>
-      dsimp at h
-      let mid := (inf + sup) / 2 -- Nah we need to special-case ⊥ and ⊤
-      have h1 : inf < mid := by grind
-      have h2 : mid < sup := by grind
-      sorry
-    | .ioc inf sup inf_lt_sup => sorry
-    | .ico inf sup inf_lt_sup => sorry
-    | .icc inf sup inf_le_sup => sorry
--- TODO: instance NonEmpty when appropriate
+    | .empty =>
+      nomatch neEmpty
+    | .ioo inf sup inf_lt_sup
+    | .ioc inf sup inf_lt_sup
+    | .ico inf sup inf_lt_sup =>
+      have ⟨x, inf_lt_x, x_lt_sup⟩ := DenselyOrdered.dense inf sup inf_lt_sup
+      use x
+      simp only [Membership.mem, Interval.mem]
+      grind
+    | .icc inf sup inf_le_sup =>
+      use inf
+      simp only [Membership.mem, Interval.mem]
+      exact ⟨le_rfl, inf_le_sup⟩
+  · intro ⟨x, x_in_I⟩
+    simp only [Membership.mem, Interval.mem] at x_in_I
+    simp only [EmptyCollection.emptyCollection]
+    intro I_empty
+    simp only [I_empty] at x_in_I
+
+/-- The empty interval corresponds to the empty set. -/
+theorem Interval.empty_iff_empty_coe (I : Interval) :
+    I = ∅ ↔ (↑I : Set EReal) = ∅ := by
+  constructor
+  · intro I_eq_empty
+    simp only [EmptyCollection.emptyCollection] at I_eq_empty
+    simp only [Interval.toSet.eq_def, I_eq_empty]
+  · intro I_coe_eq_empty
+    simp only [Interval.toSet.eq_def] at I_coe_eq_empty
+    match I with
+    | empty => rfl
+    | ioo inf sup h | ioc inf sup h | ico inf sup h | icc inf sup h =>
+      simp only [
+        Set.Ioo_eq_empty_iff,
+        Set.Ioc_eq_empty_iff,
+        Set.Ico_eq_empty_iff,
+        Set.Icc_eq_empty_iff
+      ] at I_coe_eq_empty
+      contradiction
+
 
 
 
@@ -292,42 +339,6 @@ noncomputable def Interval.ofSet (s : Set EReal) (ordConnected : s.OrdConnected)
 /-!
 TODO: Nonempty (when not .empty)
 -/
-
-/-!
-Here I define the operation using the specifics of intervals
-and prove with a theorem that it matches how sets behave.
-What's the argument for this approach instead of the reverse? And the cons?
--/
-def Interval.mem (I : Interval) (x : EReal) : Prop :=
-  match I with
-      | .empty => False
-      | .ioo inf sup _ => inf < x ∧ x < sup
-      | .ioc inf sup _ => inf < x ∧ x ≤ sup
-      | .ico inf sup _ => inf ≤ x ∧ x < sup
-      | .icc inf sup _ => inf ≤ x ∧ x ≤ sup
-
-instance : Membership EReal Interval where
-  mem := Interval.mem
-
-theorem Interval_mem_iff_Set_mem (I : Interval) (x : EReal) :
-    x ∈ I ↔ x ∈ (↑I : Set EReal) := by
-  conv =>
-    lhs ; simp only [Membership.mem]
-  simp only [Interval.mem.eq_def]
-  simp only [Interval.toSet]
-  simp only [Set.Ioo, Set.Ioc, Set.Ico, Set.Icc]
-  cases I
-  · simp only
-    exact Set.mem_empty_iff_false x
-  repeat
-    simp only
-    rw [Set.mem_setOf]
-
-def Interval.Subset (I J : Interval) : Prop :=
-  sorry
-
-instance : HasSubset Interval where
-  Subset := Interval.Subset
 
 
 
