@@ -437,7 +437,9 @@ def TaggedSets.IsHenstock {ι} (ts : TaggedSets ι) : Prop :=
 def NonOverlapping (s t : Set EReal) : Prop :=
   s ∩ t = ∅ ∨ ∃ x, s ∩ t = {x}
 
-structure TaggedDivision.{u} (ι : Type u) [Fintype ι] (s : Set EReal) extends TaggedSets ι where
+structure TaggedDivision.{u}
+    (ι : Type u) [Fintype ι]
+    extends TaggedSets ι where
   tag_in_set : toTaggedSets.IsHenstock
   closed_nonempty_intervals : ∀ i, ∃ a b, a ≤ b ∧ set i = Set.Icc a b
   -- TODO: pairwise non overlapping, with PairWise
@@ -454,6 +456,14 @@ TODO:
   Finite, tagged, non-overlapping collection of tagged sets
   which are all closed intervals and cover an interval [a, b]
 -/
+
+/-!
+Riemann sums
+--------------------------------------------------------------------------------
+-/
+
+def TaggedDivision.sum {ι} [Fintype ι] (ts : TaggedDivision ι) (f : EReal → ℝ) : ℝ :=
+  sorry
 
 
 /-!
