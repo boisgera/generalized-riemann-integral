@@ -391,6 +391,10 @@ reference point.
 
 #print Set.Icc
 
+/-
+Parametrize by a b? By a set? Don't and carry the restriction later as an
+added info?
+-/
 structure Gauge (a b : EReal) where
   toFun : EReal → Set EReal
   mem_nhds : ∀ x ∈ Set.Icc a b, toFun x ∈ 𝓝 x
@@ -410,7 +414,7 @@ TODO:
 
 
 /-!
-Finite Pointed Collections
+Tagged Sets
 --------------------------------------------------------------------------------
 -/
 
@@ -424,8 +428,7 @@ structure TaggedSets.{u} (ι : Type u) where
   set : ι → Set EReal
   tag : ι → EReal
 
-
-def Gauge.fine {ι} {a b} (γ : Gauge a b) (ts : TaggedSets ι) : Prop :=
+def TaggedSets.fine {ι} {a b} (ts : TaggedSets ι) (γ : Gauge a b) : Prop :=
   ∀ i, ts.set i ⊆ γ (ts.tag i)
 
 
