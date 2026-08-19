@@ -428,9 +428,32 @@ structure TaggedSets.{u} (ι : Type u) where
   set : ι → Set EReal
   tag : ι → EReal
 
-def TaggedSets.fine {ι} {a b} (ts : TaggedSets ι) (γ : Gauge a b) : Prop :=
+instance {ι} : CoeFun (TaggedSets ι) (fun _ => ι → Set EReal) where
+  coe ts := ts.set
+
+def TaggedSets.IsHenstock {ι} (ts : TaggedSets ι) : Prop :=
+  ∀ i, ts.tag i ∈ ts.set i
+
+def NonOverlapping (s t : Set EReal) : Prop :=
+  s ∩ t = ∅ ∨ ∃ x, s ∩ t = {x}
+
+structure TaggedDivision.{u} (ι : Type u) [Fintype ι] (s : Set EReal) extends TaggedSets ι where
+  tag_in_set : toTaggedSets.IsHenstock
+  closed_nonempty_intervals : ∀ i, ∃ a b, a ≤ b ∧ set i = Set.Icc a b
+  -- TODO: pairwise non overlapping, with PairWise
+  nonOverlapping : ∀ i j, i ≠ j → NonOverlapping (set i) (set j)
+
+def TaggedSets.IsCover {ι} (ts : TaggedSets ι) (s : Set EReal) :=
+  ⋃ i, ts i = s
+
+def TaggedSets.IsFine {ι} {a b} (ts : TaggedSets ι) (γ : Gauge a b) : Prop :=
   ∀ i, ts.set i ⊆ γ (ts.tag i)
 
+/-!
+TODO:
+  Finite, tagged, non-overlapping collection of tagged sets
+  which are all closed intervals and cover an interval [a, b]
+-/
 
 
 /-!
