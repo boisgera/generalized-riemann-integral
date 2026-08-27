@@ -101,7 +101,7 @@ example : Set.Icc (⊥ : EReal) (⊤ : EReal) = Set.univ := by
 
 
 /-!
-Definition of Intervals
+Definition of Intervals and Boxes
 --------------------------------------------------------------------------------
 -/
 
@@ -114,6 +114,22 @@ inductive Interval where
   | ioc (inf : EReal) (sup : EReal) (inf_lt_sup : inf < sup)
   | ico (inf : EReal) (sup : EReal) (inf_lt_sup : inf < sup)
   | icc (inf : EReal) (sup : EReal) (inf_le_sup : inf ≤ sup)
+
+structure Box where
+  inf : EReal
+  sup : EReal
+  inf_le_sup : inf ≤ sup
+
+def Box.toInterval (box : Box) : Interval :=
+  Interval.icc box.inf box.sup box.inf_le_sup
+
+instance : Coe Box Interval where
+  coe := Box.toInterval
+
+/-!
+TODO: Have all the set-like operation also work for Box
+(just inherit from Interval)
+-/
 
 /-!
 Intervals as Sets
@@ -142,12 +158,12 @@ Membership
 --------------------------------------------------------------------------------
 -/
 
-
 /-!
 Generally,
 - I define the operations using only elementary constructs for intervals
 - I prove that these definitions match how the operations on intervals-as-sets
   behave afterwards.
+- Box piggybacks on the Interval def.
 -/
 def Interval.mem (I : Interval) (x : EReal) : Prop :=
   match I with
@@ -174,7 +190,18 @@ theorem Interval_mem_iff_Set_mem (I : Interval) (x : EReal) :
     simp only
     rw [Set.mem_setOf]
 
+
+instance : Membership EReal Box where
+  mem (box : Box):= (↑box : Interval).mem
+
+
 #print HasSubset
+-- class HasSubset.{u} (α : Type u) : Type u
+-- number of parameters: 1
+-- fields:
+--   HasSubset.Subset : α → α → Prop
+-- constructor:
+--   HasSubset.mk.{u} {α : Type u} (Subset : α → α → Prop) : HasSubset α
 
 /-! TODO
 
@@ -376,6 +403,34 @@ As a consequence, we have:
 #check isOpen_Iio
 -- isOpen_Ioi.{u} {α : Type u} [TopologicalSpace α] [LinearOrder α] [ClosedIicTopology α] {a : α} : IsOpen (Set.Ioi a)
 
+
+
+/-!
+Tagged Stuff
+--------------------------------------------------------------------------------
+-/
+
+
+structure TaggedBoxes.{u} (ι : Type u) [Fintype ι] where
+  box : ι → Box
+  tag : ι → EReal
+
+
+def TaggedBoxes.IsHenstock {ι} [Fintype ι] (π : TaggedBoxes ι) : Prop :=
+  ∀ i, π.tag i ∈ (↑(π.box i) : Interval)
+
+def TaggedBoxes.cover {ι} [Fintype ι] (π : TaggedBoxes ι) : Set EReal := ⋃ i, (π.box i)
+
+def Interval.NonOverlapping (s t : Interval) : Prop :=
+  Set.Subsingleton ((s : Set EReal) ∩ (t : Set EReal))
+
+def TaggedBoxes.NonOverlapping {ι} [Fintype ι] (π : TaggedBoxes ι) : Prop :=
+  ∀ i j, π.box i ≠ π.box j → Interval.NonOverlapping (π.box i) (π.box j)
+
+structure TaggedDivision.{u} (ι : Type u) [Fintype ι] extends TaggedBoxes ι where
+  isHenstock : toTaggedBoxes.IsHenstock
+  nonOverlapping : toTaggedBoxes.NonOverlapping
+
 /-!
 Gauges
 --------------------------------------------------------------------------------
@@ -404,110 +459,94 @@ reference point.
 #print Set.Icc
 
 /-
-Parametrize by a b? By a set? Don't and carry the restriction later as an
-added info?
+Jeeeeeezz. I have the impression that I am going to need to define a Gauge on
+a set.
 -/
-structure Gauge (a b : EReal) where
+structure Gauge (s : Set EReal) where
   toFun : EReal → Set EReal
-  mem_nhds : ∀ x ∈ Set.Icc a b, toFun x ∈ 𝓝 x
+  mem_nhds : ∀ x ∈ s, toFun x ∈ 𝓝 x
 
-instance {a b} : CoeFun (Gauge a b) (fun _ => EReal → Set EReal) where
+instance {box : Box} : CoeFun (Gauge box) (fun _ => EReal → Set EReal) where
   coe g := g.toFun
 
 /-!
 TODO:
-  - Order on gauges, induced by subsets,
-  - Lattice structure? More? See what structure we get out of neighbourhoods.
-  - Cousin's lemma. We need "pointed subdivisions" for that and the notion
-    that such a family is dominated by the gauge.
   - TODO: make a "numerical gauge" where the δ > 0 is interpreted differently
     when x is -∞ or +∞?
 -/
 
+def TaggedBoxes.subordinateTo {ι} [Fintype ι] (π : TaggedBoxes ι)
+    {box : Box} (γ : Gauge box) : Prop :=
+    ∀ (i : ι), ↑(π.box i) ⊆ γ (π.tag i)
+
+notation:50 π " ≼ " γ => TaggedBoxes.subordinateTo π γ
 
 /-!
-Tagged Sets
+Cousin Lemma
 --------------------------------------------------------------------------------
 -/
 
-/-!
-Note: with the Fintype stuff, partition may be a mess to deal with...
-But we want nonoverlapping stuff anyway, so... Implicit indexing of
-this stuff by the base set is not great either.
--/
-
-structure TaggedSets.{u} (ι : Type u) where
-  set : ι → Set EReal
-  tag : ι → EReal
-
-instance {ι} : CoeFun (TaggedSets ι) (fun _ => ι → Set EReal) where
-  coe ts := ts.set
-
-def TaggedSets.IsHenstock {ι} (ts : TaggedSets ι) : Prop :=
-  ∀ i, ts.tag i ∈ ts.set i
-
--- There is a concept of Subsingleton that does exactly that.
-def NonOverlapping (s t : Set EReal) : Prop :=
-  s ∩ t = ∅ ∨ ∃ x, s ∩ t = {x}
-
--- structure TaggedDivision.{u}
---     (ι : Type u) [Fintype ι]
---     extends TaggedSets ι where
---   tag_in_set : toTaggedSets.IsHenstock
---   closed_nonempty_intervals : ∀ i, ∃ a b, a ≤ b ∧ set i = Set.Icc a b
---   -- TODO: pairwise non overlapping, with PairWise
---   nonOverlapping : ∀ i j, i ≠ j → NonOverlapping (set i) (set j)
-
-def TaggedSets.IsCover {ι} (ts : TaggedSets ι) (s : Set EReal) :=
-  ⋃ i, ts i = s
-
-def TaggedSets.IsFine {ι} {a b} (ts : TaggedSets ι) (γ : Gauge a b) : Prop :=
-  ∀ i, ts.set i ⊆ γ (ts.tag i)
+#check IsCompact.nonempty_iInter_of_directed_nonempty_isCompact_isClosed
+-- IsCompact.nonempty_iInter_of_directed_nonempty_isCompact_isClosed.{u, v} {X : Type u} [TopologicalSpace X] {ι : Type v}
+--   [hι : Nonempty ι] (t : ι → Set X) (htd : Directed (fun x1 x2 ↦ x1 ⊇ x2) t) (htn : ∀ (i : ι), (t i).Nonempty)
+--   (htc : ∀ (i : ι), IsCompact (t i))
+--   (htcl : ∀ (i : ι), IsClosed (t i)) : (⋂ i, t i).Nonempty
 
 /-!
-TODO:
-  Finite, tagged, non-overlapping collection of tagged sets
-  which are all closed intervals and cover an interval [a, b]
+Let's simplify this, since we are in an (easier) specific case.
 -/
+
+theorem nonempty_iInter_of_antitone_nonempty_isClosed.{u, v} {X : Type u}
+    [TopologicalSpace X] [CompactSpace X]
+    {ι : Type v} [LinearOrder ι] [hι : Nonempty ι] (t : ι → Set X)
+    (hta : Antitone t) (htn : ∀ (i : ι), (t i).Nonempty)
+    (htcl : ∀ (i : ι), IsClosed (t i)) : (⋂ i, t i).Nonempty :=
+  have htc (i : ι) : IsCompact (t i) := IsClosed.isCompact (htcl i)
+  have htd : Directed (fun x1 x2 ↦ x1 ⊇ x2) t := Antitone.directed_ge hta
+  IsCompact.nonempty_iInter_of_directed_nonempty_isCompact_isClosed t htd htn htc htcl
 
 /-!
-The design our our tagged stuff is not appropriate, we want directly intervals
+TODO: we need TaggedBoxes.cover and concept of taggedBoxes subordinate to a gauge
+before we can proceed.
 -/
 
+theorem Cousin_lemma.{u} {box : Box} (γ : Gauge box) :
+    ∃ (ι : Type u) (hf : Fintype ι) (π : TaggedDivision ι),
+    π.cover = ↑box ∧ π.toTaggedBoxes ≼ γ
+    := by
+  sorry
 
+/-!
+Small lemma: if we start with a tagged partition with one cell which is
+the base box and merelely split on some of the cells, the π.cover = ↑box
+is "obvious" at each step.
 
-structure TaggedBoxes.{u, v} (ι : Type u) [Fintype ι] (Tag : Type v) where
-  box : ι → Interval
-  tag : ι → Tag
+We need to construct the basic "split this one", aggregrate with the rest
+mutation step...
+-/
 
+def Cousin_lemma_contradiction.{u} {box : Box} (γ : Gauge box) :=
+    ∀ (ι : Type u) (hf : Fintype ι) (π : TaggedDivision ι),
+    π.cover = ↑box → ¬ π.toTaggedBoxes ≼ γ
 
-def TaggedBoxes.IsHenstock {ι} [Fintype ι] (π : TaggedBoxes ι EReal) : Prop :=
-  ∀ i, π.tag i ∈ π.box i
+/-!
+Mmm actually our induction needs to mutate the base box? We show that
+if the Cousin lemma is contradicted for some box, then it's also
+contradicted one one of the "splits" of it?
+-/
 
-structure HenstockBoxes.{u} (ι : Type u) [Fintype ι] extends TaggedBoxes ι EReal where
-  isHenstock : toTaggedBoxes.IsHenstock
 
 
 /-!
-TODO:
-  - lift this to the Intervals section.
-  - define the intersection of intervals
-  - show that it matches the definition for sets
-  - patch the definition below to avoid the coercion of intervals to sets.
+We need to pick a gauge on a box, and assume a contradiction, that is that
+we cannot find any subdivision of the box which is subordinate to the gauge,
+construct by induction a family of nested boxes that ends up being a
+fundamental neighbourhood basis of some point, and exhibit the contradiction
+there.
+
+This is the stuff we have not captured yet, that our construction will end
+up "fitting into" any neighbourhood of the limit point by construction.
 -/
-
--- There is a concept of Subsingleton that does exactly that.
-def Interval.NonOverlapping (s t : Interval) : Prop :=
-  Set.Subsingleton ((s : Set EReal) ∩ (t : Set EReal))
-
-
-def TaggedBoxes.NonOverlapping {ι} [Fintype ι] (π : TaggedBoxes ι EReal) : Prop :=
-  ∀ i j, π.box i ≠ π.box j → Interval.NonOverlapping (π.box i) (π.box j)
-
--- TODO: redesign this with Pairwise?
-
-structure TaggedDivision.{u} {ι : Type u} [Fintype ι] extends HenstockBoxes ι where
-  nonOverlapping : toTaggedBoxes.NonOverlapping
 
 /-!
 Riemann sums
@@ -535,35 +574,33 @@ The function that maps infinite lengths to zero already exist:
 
 noncomputable def Interval.lengthReal := EReal.toReal ∘ Interval.length
 
-
 /-!
 TODO: later a version of the sum that accepts integrands with extended real
 values, with a pre-cleanup for negligible sets.
 -/
 
-/- Q: "abstract"/named the piped expression? -/
-noncomputable def TaggedBoxes.sum {ι} [Fintype ι]
-(π : TaggedBoxes ι EReal) (f : EReal → ℝ) : ℝ :=
+noncomputable def TaggedBoxes.sum' {ι} [Fintype ι]
+(π : TaggedBoxes ι) (f : EReal → ℝ) : ℝ :=
   ∑ i : ι, Interval.lengthReal (π.box i) * f (π.tag i)
 
 /-!
 TODO: linearity of the integration wrt `f`.
 Should we provide a LinearMap instead? (Probably, let's revisit this
 later. Our sum signature would then be
-(TaggedBoxes ι EReal) → ((EReal → R) →ₗ[ℝ] ℝ)
+(TaggedBoxes ι) → ((EReal → R) →ₗ[ℝ] ℝ)
 -/
 
-theorem TaggedBoxes.sum_is_linear {ι} [Fintype ι] (π : TaggedBoxes ι EReal) :
-    IsLinearMap ℝ π.sum where
+theorem TaggedBoxes.sum'_is_linear {ι} [Fintype ι] (π : TaggedBoxes ι) :
+    IsLinearMap ℝ π.sum' where
   map_add := by
     intro x y
-    simp only [TaggedBoxes.sum]
+    simp only [TaggedBoxes.sum']
     simp only [Pi.add_apply]
     simp only [mul_add]
     simp only [Finset.sum_add_distrib]
   map_smul := by
     intro c x
-    simp only [TaggedBoxes.sum]
+    simp only [TaggedBoxes.sum']
     simp only [Pi.smul_apply]
     simp only [smul_eq_mul]
     conv => enter [1, 2, x_1, 2]; rw [mul_comm]
@@ -571,83 +608,9 @@ theorem TaggedBoxes.sum_is_linear {ι} [Fintype ι] (π : TaggedBoxes ι EReal) 
     conv => enter [2]; rw [mul_comm]
     simp only [Finset.sum_mul]
 
-noncomputable def TaggedBoxes.sumL {ι} [Fintype ι] (π : TaggedBoxes ι EReal) :
+noncomputable def TaggedBoxes.sum {ι} [Fintype ι] (π : TaggedBoxes ι) :
     (EReal → ℝ) →ₗ[ℝ] ℝ :=
-  IsLinearMap.mk' π.sum (TaggedBoxes.sum_is_linear π)
+  IsLinearMap.mk' π.sum' (TaggedBoxes.sum'_is_linear π)
 
-
-/-!
-Partitions
---------------------------------------------------------------------------------
--/
-
-#check Pairwise
--- Pairwise.{u_1} {α : Type u_1} (r : α → α → Prop) : Prop
-
-#print Pairwise
--- def Pairwise.{u_1} : {α : Type u_1} → (α → α → Prop) → Prop :=
--- fun {α} r ↦ ∀ ⦃i j : α⦄, i ≠ j → r i j
-
-/-!
-TODO: study this `Pairwise` stuff and how it's done in BoxIntegral.
-AFAICT the issue I have is that my "collection" is a (fin)set when
-`Pairwise` is meant for types.
--/
-
-#print Set.Pairwise
--- protected def Set.Pairwise.{u_1} : {α : Type u_1} → Set α → (α → α → Prop) → Prop :=
--- fun {α} s r ↦ ∀ ⦃x : α⦄, x ∈ s → ∀ ⦃y : α⦄, y ∈ s → x ≠ y → r x y
-
-#print Disjoint
--- def Disjoint.{u_1} : {α : Type u_1} → [inst : PartialOrder α] → [OrderBot α] → α → α → Prop :=
--- fun {α} [PartialOrder α] [OrderBot α] a b ↦ ∀ ⦃x : α⦄, x ≤ a → x ≤ b → x ≤ ⊥
-
-/-!
-TODO: define "NonOverlapping". Think hard about it before ; if we define it
-with references to sets, can we avoid to deal with a huge combinatorial
-cases. Idea: define intersection of intervals to begin with (and check the
-consistency of the def with the sets), then NonOverlapping becomes easy
-(intersection is either empty or Interval.Icc with the same inf and sup)
--/
-
-
-
-
-structure Partition where
-  intervals : Finset Interval
-  nonEmpty : ∀ I ∈ intervals, Set.Nonempty (I : Set EReal)
-  pairwiseDisjoints : ∀ I ∈ intervals, ∀ J ∈ intervals,
-    I ≠ J → (I : Set EReal) ∩ (J : Set EReal) = ∅
-
-structure Partition' where
-  intervals : Finset Interval
-  nonEmpty : ∀ I ∈ intervals, Set.Nonempty (I : Set EReal)
-  pairwiseDisjoints : ∀ I ∈ intervals, ∀ J ∈ intervals,
-    I ≠ J → Disjoint (↑I : Set EReal) (↑J : Set EReal)
-
-
--- TODO: declare membership.
-
-def Partition.toSetOfSets (p : Partition) : Set (Set EReal) :=
-  (p.intervals : Set Interval) -- first coerce : Finset Interval → Set interval
-  |> Set.image (fun (I : Interval) => (I : Set EReal)) -- internal coercion
-
-instance : Coe (Partition) (Set (Set EReal)) where
-  coe := Partition.toSetOfSets
-
-def Partition.sUnion (p : Partition) : Set EReal :=
-  ⋃₀ p -- coercion works...
-
--- read as "is a partition of"
-def PartitionOf (p : Partition) (s : Set EReal) : Prop := ⋃₀ p = s
-
-/-!
-TODO: consider the collection of all finite unions of intervals,
-show that we have a ring (stable by ∪ and \) and even an algebra
-(contains the full set).
-
-Note that here we won't require `vol` to be a pre-measure
-(we don't want to have anything to do with σ-additivity)
--/
 
 end HK
