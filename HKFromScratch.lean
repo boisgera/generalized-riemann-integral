@@ -134,6 +134,10 @@ instance : Coe Interval (Set EReal) where
   coe := Interval.toSet
 
 /-!
+Later, we do the opposite, assuming that the set if order-connected.
+-/
+
+/-!
 Membership
 --------------------------------------------------------------------------------
 -/
@@ -336,13 +340,21 @@ theorem interval_iff_ordConnected (s : Set EReal) :
     -- show that only 4 cases are possible
     sorry
 
---- Interval.ofSet when provided with a set and a prove or order connectedness
+
+
+/-- Give an interval when provided with a set and a proof or its connectedness -/
 noncomputable def Interval.ofSet (s : Set EReal) (ordConnected : s.OrdConnected)
     : Interval :=
   s
     |> interval_iff_ordConnected
     |>.mpr ordConnected
     |> Classical.choose
+
+/-!
+The associated coercion would be not a `Coe` but a `CoeDep`, I don't want to
+get into this, let's keep the explicit `ofSet`.
+-/
+
 
 /-!
 Topology
@@ -434,16 +446,17 @@ instance {ι} : CoeFun (TaggedSets ι) (fun _ => ι → Set EReal) where
 def TaggedSets.IsHenstock {ι} (ts : TaggedSets ι) : Prop :=
   ∀ i, ts.tag i ∈ ts.set i
 
+-- There is a concept of Subsingleton that does exactly that.
 def NonOverlapping (s t : Set EReal) : Prop :=
   s ∩ t = ∅ ∨ ∃ x, s ∩ t = {x}
 
-structure TaggedDivision.{u}
-    (ι : Type u) [Fintype ι]
-    extends TaggedSets ι where
-  tag_in_set : toTaggedSets.IsHenstock
-  closed_nonempty_intervals : ∀ i, ∃ a b, a ≤ b ∧ set i = Set.Icc a b
-  -- TODO: pairwise non overlapping, with PairWise
-  nonOverlapping : ∀ i j, i ≠ j → NonOverlapping (set i) (set j)
+-- structure TaggedDivision.{u}
+--     (ι : Type u) [Fintype ι]
+--     extends TaggedSets ι where
+--   tag_in_set : toTaggedSets.IsHenstock
+--   closed_nonempty_intervals : ∀ i, ∃ a b, a ≤ b ∧ set i = Set.Icc a b
+--   -- TODO: pairwise non overlapping, with PairWise
+--   nonOverlapping : ∀ i j, i ≠ j → NonOverlapping (set i) (set j)
 
 def TaggedSets.IsCover {ι} (ts : TaggedSets ι) (s : Set EReal) :=
   ⋃ i, ts i = s
@@ -458,12 +471,109 @@ TODO:
 -/
 
 /-!
+The design our our tagged stuff is not appropriate, we want directly intervals
+-/
+
+
+
+structure TaggedBoxes.{u, v} (ι : Type u) [Fintype ι] (Tag : Type v) where
+  box : ι → Interval
+  tag : ι → Tag
+
+
+def TaggedBoxes.IsHenstock {ι} [Fintype ι] (π : TaggedBoxes ι EReal) : Prop :=
+  ∀ i, π.tag i ∈ π.box i
+
+structure HenstockBoxes.{u} (ι : Type u) [Fintype ι] extends TaggedBoxes ι EReal where
+  isHenstock : toTaggedBoxes.IsHenstock
+
+
+/-!
+TODO:
+  - lift this to the Intervals section.
+  - define the intersection of intervals
+  - show that it matches the definition for sets
+  - patch the definition below to avoid the coercion of intervals to sets.
+-/
+
+-- There is a concept of Subsingleton that does exactly that.
+def Interval.NonOverlapping (s t : Interval) : Prop :=
+  Set.Subsingleton ((s : Set EReal) ∩ (t : Set EReal))
+
+
+def TaggedBoxes.NonOverlapping {ι} [Fintype ι] (π : TaggedBoxes ι EReal) : Prop :=
+  ∀ i j, π.box i ≠ π.box j → Interval.NonOverlapping (π.box i) (π.box j)
+
+-- TODO: redesign this with Pairwise?
+
+structure TaggedDivision.{u} {ι : Type u} [Fintype ι] extends HenstockBoxes ι where
+  nonOverlapping : toTaggedBoxes.NonOverlapping
+
+/-!
 Riemann sums
 --------------------------------------------------------------------------------
 -/
 
-def TaggedDivision.sum {ι} [Fintype ι] (ts : TaggedDivision ι) (f : EReal → ℝ) : ℝ :=
-  sorry
+
+
+/-- Nota: do we need a length that returns values in ENNReal instead? -/
+noncomputable def Interval.length : Interval → EReal
+  | .empty => 0
+  | .ioo inf sup _ | .ioc inf sup _ | .ico inf sup _ | icc inf sup _ =>
+    sup - inf
+
+/-!
+The function that maps infinite lengths to zero already exist:
+-/
+#print EReal.toReal
+-- def EReal.toReal : EReal → ℝ :=
+-- fun x ↦
+--   match x with
+--   | none => 0
+--   | some none => 0
+--   | some (some x) => x
+
+noncomputable def Interval.lengthReal := EReal.toReal ∘ Interval.length
+
+
+/-!
+TODO: later a version of the sum that accepts integrands with extended real
+values, with a pre-cleanup for negligible sets.
+-/
+
+/- Q: "abstract"/named the piped expression? -/
+noncomputable def TaggedBoxes.sum {ι} [Fintype ι]
+(π : TaggedBoxes ι EReal) (f : EReal → ℝ) : ℝ :=
+  ∑ i : ι, Interval.lengthReal (π.box i) * f (π.tag i)
+
+/-!
+TODO: linearity of the integration wrt `f`.
+Should we provide a LinearMap instead? (Probably, let's revisit this
+later. Our sum signature would then be
+(TaggedBoxes ι EReal) → ((EReal → R) →ₗ[ℝ] ℝ)
+-/
+
+theorem TaggedBoxes.sum_is_linear {ι} [Fintype ι] (π : TaggedBoxes ι EReal) :
+    IsLinearMap ℝ π.sum where
+  map_add := by
+    intro x y
+    simp only [TaggedBoxes.sum]
+    simp only [Pi.add_apply]
+    simp only [mul_add]
+    simp only [Finset.sum_add_distrib]
+  map_smul := by
+    intro c x
+    simp only [TaggedBoxes.sum]
+    simp only [Pi.smul_apply]
+    simp only [smul_eq_mul]
+    conv => enter [1, 2, x_1, 2]; rw [mul_comm]
+    conv => enter [1, 2, x_1]; rw [<- mul_assoc]
+    conv => enter [2]; rw [mul_comm]
+    simp only [Finset.sum_mul]
+
+noncomputable def TaggedBoxes.sumL {ι} [Fintype ι] (π : TaggedBoxes ι EReal) :
+    (EReal → ℝ) →ₗ[ℝ] ℝ :=
+  IsLinearMap.mk' π.sum (TaggedBoxes.sum_is_linear π)
 
 
 /-!
