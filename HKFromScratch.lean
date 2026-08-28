@@ -458,25 +458,22 @@ reference point.
 
 #print Set.Icc
 
-/-
-Jeeeeeezz. I have the impression that I am going to need to define a Gauge on
-a set.
--/
-structure Gauge (s : Set EReal) where
+structure Gauge where
   toFun : EReal → Set EReal
-  mem_nhds : ∀ x ∈ s, toFun x ∈ 𝓝 x
+  mem_nhds : ∀ x : EReal, toFun x ∈ 𝓝 x
 
-instance {box : Box} : CoeFun (Gauge box) (fun _ => EReal → Set EReal) where
+instance : CoeFun Gauge (fun _ => EReal → Set EReal) where
   coe g := g.toFun
 
 /-!
 TODO:
   - TODO: make a "numerical gauge" where the δ > 0 is interpreted differently
-    when x is -∞ or +∞?
+    when x is -∞ or +∞? (via 1/x?)
 -/
 
+
 def TaggedBoxes.subordinateTo {ι} [Fintype ι] (π : TaggedBoxes ι)
-    {box : Box} (γ : Gauge box) : Prop :=
+    (γ : Gauge) : Prop :=
     ∀ (i : ι), ↑(π.box i) ⊆ γ (π.tag i)
 
 notation:50 π " ≼ " γ => TaggedBoxes.subordinateTo π γ
@@ -510,7 +507,7 @@ TODO: we need TaggedBoxes.cover and concept of taggedBoxes subordinate to a gaug
 before we can proceed.
 -/
 
-theorem Cousin_lemma.{u} {box : Box} (γ : Gauge box) :
+theorem Cousin_lemma.{u} (γ : Gauge) (box : Box) :
     ∃ (ι : Type u) (hf : Fintype ι) (π : TaggedDivision ι),
     π.cover = ↑box ∧ π.toTaggedBoxes ≼ γ
     := by
@@ -525,9 +522,21 @@ We need to construct the basic "split this one", aggregrate with the rest
 mutation step...
 -/
 
-def Cousin_lemma_contradiction.{u} {box : Box} (γ : Gauge box) :=
-    ∀ (ι : Type u) (hf : Fintype ι) (π : TaggedDivision ι),
+def NoGauge.{u} (γ : Gauge) (box : Box): Prop :=
+    ∀ (ι : Type u) (_ : Fintype ι) (π : TaggedDivision ι),
     π.cover = ↑box → ¬ π.toTaggedBoxes ≼ γ
+
+def Box.split (box : Box) (x : EReal) : Box × Box :=
+  let ⟨inf, sup, inf_le_sup⟩ := box
+  let box1 : Box := ⟨inf, (inf + sup)/2, by sorry⟩
+  let box2 : Box := ⟨(inf + sup)/2, sup, by sorry⟩
+  -- TODO :
+  --   - special case x < inf and sup < x
+  --   - special case box containing ⊥ or ⊤
+  (box1, box2)
+
+-- TODO: theorem noGauge_induction
+
 
 /-!
 Mmm actually our induction needs to mutate the base box? We show that
@@ -553,8 +562,6 @@ Riemann sums
 --------------------------------------------------------------------------------
 -/
 
-
-
 /-- Nota: do we need a length that returns values in ENNReal instead? -/
 noncomputable def Interval.length : Interval → EReal
   | .empty => 0
@@ -579,16 +586,10 @@ TODO: later a version of the sum that accepts integrands with extended real
 values, with a pre-cleanup for negligible sets.
 -/
 
+/-- The raw Riemann sum function; use `sum` instead, which is a linear map. -/
 noncomputable def TaggedBoxes.sum' {ι} [Fintype ι]
 (π : TaggedBoxes ι) (f : EReal → ℝ) : ℝ :=
   ∑ i : ι, Interval.lengthReal (π.box i) * f (π.tag i)
-
-/-!
-TODO: linearity of the integration wrt `f`.
-Should we provide a LinearMap instead? (Probably, let's revisit this
-later. Our sum signature would then be
-(TaggedBoxes ι) → ((EReal → R) →ₗ[ℝ] ℝ)
--/
 
 theorem TaggedBoxes.sum'_is_linear {ι} [Fintype ι] (π : TaggedBoxes ι) :
     IsLinearMap ℝ π.sum' where
