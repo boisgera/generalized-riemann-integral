@@ -526,13 +526,46 @@ def NoGauge.{u} (γ : Gauge) (box : Box): Prop :=
     ∀ (ι : Type u) (_ : Fintype ι) (π : TaggedDivision ι),
     π.cover = ↑box → ¬ π.toTaggedBoxes ≼ γ
 
-def Box.split (box : Box) (x : EReal) : Box × Box :=
-  let ⟨inf, sup, inf_le_sup⟩ := box
-  let box1 : Box := ⟨inf, (inf + sup)/2, by sorry⟩
-  let box2 : Box := ⟨(inf + sup)/2, sup, by sorry⟩
-  -- TODO :
-  --   - special case x < inf and sup < x
-  --   - special case box containing ⊥ or ⊤
+noncomputable def Box.midPoint (box : Box) : EReal :=
+  match hinf : box.inf, hsup : box.sup with
+  | ⊥, ⊥ => ⊥
+  | ⊥, ⊤ => 0
+  | ⊥, some (some y) => y - 1
+  | ⊤, ⊥ =>
+    have inf_le_sup := box.inf_le_sup
+    have top_le_bot : (⊤ : EReal) ≤ (⊥ : EReal) := by
+      simp only [hinf, hsup] at inf_le_sup
+      exact inf_le_sup
+    have bot_lt_top : (⊥ : EReal) < (⊤ : EReal) := bot_lt_top
+    have false : False := by grind
+    false.elim
+  | ⊤, ⊤ => ⊤
+  | ⊤, some (some y) =>
+    have inf_le_sup := box.inf_le_sup
+    have top_le_y : (⊤ : EReal) ≤ (↑y : EReal) := by
+      rw [hinf, hsup] at inf_le_sup
+      exact inf_le_sup
+    have y_le_top := le_top (a := (↑y : EReal))
+    have top_eq_y := LE.le.antisymm top_le_y y_le_top
+    nomatch top_eq_y
+  | some (some x), ⊥ =>
+    have inf_le_sup := box.inf_le_sup
+    have x_le_bot : (↑x : EReal) ≤ ⊥ := by
+      rw [hinf, hsup] at inf_le_sup
+      exact inf_le_sup
+    have x_eq_bot := LE.le.antisymm x_le_bot (bot_le (a := (↑x : EReal)))
+    nomatch x_eq_bot
+  | some (some x), ⊤ => x + 1
+  | some (some x), some (some y) => (x + y) / 2
+
+theorem Box.midPointMem (box : Box) : box.midPoint ∈ box := by
+  constructor
+  · sorry
+  · sorry
+
+noncomputable def Box.split (box : Box) : Box × Box :=
+  let box1 : Box := ⟨box.inf, box.midPoint, box.midPointMem.1⟩
+  let box2 : Box := ⟨box.midPoint, box.sup, box.midPointMem.2⟩
   (box1, box2)
 
 -- TODO: theorem noGauge_induction
