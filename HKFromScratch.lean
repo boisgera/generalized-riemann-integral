@@ -791,6 +791,12 @@ TODO:
 
 -/
 
+/-!
+TODO: first lemma, assume that at some stage (boxes i) has finite bounds.
+Show that the length is / 2 at each stage and that is converges "inside"
+any Icc (neighb of...)
+-/
+
 
 -- TODO: theorem noGauge_induction
 
