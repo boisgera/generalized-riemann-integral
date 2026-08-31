@@ -493,9 +493,8 @@ Cousin Lemma
 Let's simplify this, since we are in an (easier) specific case.
 -/
 
-theorem nonempty_iInter_of_antitone_nonempty_isClosed.{u, v} {X : Type u}
-    [TopologicalSpace X] [CompactSpace X]
-    {ι : Type v} [LinearOrder ι] [hι : Nonempty ι] (t : ι → Set X)
+theorem nonempty_iInter_of_antitone_nonempty_isClosed.{v}
+    {ι : Type v} [LinearOrder ι] [hι : Nonempty ι] (t : ι → Set EReal)
     (hta : Antitone t) (htn : ∀ (i : ι), (t i).Nonempty)
     (htcl : ∀ (i : ι), IsClosed (t i)) : (⋂ i, t i).Nonempty :=
   have htc (i : ι) : IsCompact (t i) := IsClosed.isCompact (htcl i)
@@ -693,11 +692,104 @@ noncomputable def Box.split (box : Box) : Box × Box :=
 -- Prior lemma: "shape" of the neighbourhoods in EReal where we can fit
 -- small enough boxes.
 
+/-!
+Neighbourhoods and intervals in the extended real numbers set
+--------------------------------------------------------------------------------
+-/
+
+#check EReal.mem_nhds_bot_iff
+-- EReal.mem_nhds_bot_iff {s : Set EReal} : s ∈ 𝓝 ⊥ ↔ ∃ y, Set.Iio ↑y ⊆ s
+
+#check EReal.mem_nhds_top_iff
+-- EReal.mem_nhds_top_iff {s : Set EReal} : s ∈ 𝓝 ⊤ ↔ ∃ y, Set.Ioi ↑y ⊆ s
+
+#check mem_nhds_iff_exists_Ioo_subset'
+-- mem_nhds_iff_exists_Ioo_subset'.{u} {α : Type u}
+--   [TopologicalSpace α] [LinearOrder α] [OrderTopology α]
+--   {a : α} {s : Set α} (hl : ∃ l, l < a) (hu : ∃ u, a < u) :
+--   s ∈ 𝓝 a ↔ ∃ l u, a ∈ Set.Ioo l u ∧ Set.Ioo l u ⊆ s
+
+theorem EReal.mem_nhds_real_iff {s : Set EReal} {a : EReal}
+    (a_real : ∃ aReal : ℝ, ↑aReal = a) :
+    s ∈ 𝓝 a ↔ ∃ l u, a ∈ Set.Ioo l u ∧ Set.Ioo l u ⊆ s := by
+  have hl : ∃ l, l < a := by sorry
+  have hr : ∃ r, a < r := by sorry
+  constructor
+  · intro s_in_nhds_a
+    apply (mem_nhds_iff_exists_Ioo_subset' hl hr).mp
+    grind
+  · intro ⟨l, u, a_in_ioo_u_l, ioo_u_l_subset_nhds_a⟩
+    apply (mem_nhds_iff_exists_Ioo_subset' hl hr).mpr
+    grind
+
+/-!
+--------------------------------------------------------------------------------
+-/
+
 theorem nested_boxes (boxes : ℕ → Box)
-    (h : ∀ n, boxes (n+1) = (boxes n).split.1 ∨ boxes (n+1) = (boxes n).split.2) :
-    ∃ x : EReal, ∀ N ∈ nhds x, ∃ n0, ∀ n ≥ n0, ↑(boxes n) ⊆ N := by
+    (h : ∀ n, boxes (n + 1) = (boxes n).split.1 ∨ boxes (n + 1) = (boxes n).split.2) :
+    ∃ x : EReal, ∀ s ∈ 𝓝 x, ∃ n0, ∀ n ≥ n0, ↑(boxes n) ⊆ s := by
   sorry
 
+#check nonempty_iInter_of_antitone_nonempty_isClosed
+-- HK.nonempty_iInter_of_antitone_nonempty_isClosed.{v}
+--   {ι : Type v} [LinearOrder ι] [hι : Nonempty ι] (t : ι → Set EReal)
+--   (hta : Antitone t) (htn : ∀ (i : ι), (t i).Nonempty) (htcl : ∀ (i : ι), IsClosed (t i)) :
+--   (⋂ i, t i).Nonempty
+
+lemma Box.split_antitone_step (box : Box) :
+    (↑box.split.1 : Set EReal) ⊆ (↑box : Set EReal) ∧
+    (↑box.split.2 : Set EReal) ⊆ (↑box : Set EReal) := by
+  constructor
+  · simp only [Box.toInterval, Interval.toSet, Box.split]
+    apply Set.Icc_subset_Icc
+    · apply le_refl
+    · have mem := Box.midPointMem box
+      simp only [Membership.mem, Box.toInterval, Interval.mem] at mem
+      exact mem.right
+  · simp only [Box.toInterval, Interval.toSet, Box.split]
+    apply Set.Icc_subset_Icc
+    · have mem := Box.midPointMem box
+      simp only [Membership.mem, Box.toInterval, Interval.mem] at mem
+      exact mem.left
+    · apply le_refl
+
+lemma nested_boxes_acc (boxes : ℕ → Box)
+    (h : ∀ n, boxes (n + 1) = (boxes n).split.1 ∨ boxes (n + 1) = (boxes n).split.2) :
+    (⋂ i, ↑(boxes i) : Set EReal).Nonempty := by
+    have antitone : Antitone fun i ↦ (↑(boxes i): Set EReal) := by
+      apply antitone_nat_of_succ_le
+      intro n
+      specialize h n
+      cases h with
+      | inl h =>
+        rw [h]
+        exact Box.split_antitone_step (boxes n) |>.1
+      | inr h =>
+        rw [h]
+        exact Box.split_antitone_step (boxes n) |>.2
+    apply nonempty_iInter_of_antitone_nonempty_isClosed
+    · apply antitone
+    · intro i
+      rw [Box.toInterval, Interval.toSet]
+      exact Set.nonempty_Icc.mpr (boxes i).inf_le_sup
+    · intro i
+      rw [Box.toInterval, Interval.toSet]
+      apply isClosed_Icc
+
+/-!
+TODO:
+  - Make the assumptions in nested_box theorem
+  - Consider the -- nonempty -- intersection of the boxes.
+  - If it contains -inf or +inf at each stage, special case (TODO).
+  - Otherwise we can pick a x in the intersection.
+    after the stage where neither -inf not +inf is in the intersection,
+    at each stage the length of the interval is divided by 2.
+    Pick a nieghbourhood of x, extract a sub interval, push the iteration
+    and show that we end up in it.
+  - The infinity special case is quite similar.
+
+-/
 
 
 -- TODO: theorem noGauge_induction
