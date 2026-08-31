@@ -526,7 +526,7 @@ def NoGauge.{u} (γ : Gauge) (box : Box): Prop :=
     ∀ (ι : Type u) (_ : Fintype ι) (π : TaggedDivision ι),
     π.cover = ↑box → ¬ π.toTaggedBoxes ≼ γ
 
-noncomputable def Box.midPoint (box : Box) : EReal :=
+noncomputable def Box.midPoint__deprecated (box : Box) : EReal :=
   match hinf : box.inf, hsup : box.sup with
   | ⊥, ⊥ => ⊥
   | ⊥, ⊤ => 0
@@ -538,7 +538,7 @@ noncomputable def Box.midPoint (box : Box) : EReal :=
       exact inf_le_sup
     have bot_lt_top : (⊥ : EReal) < (⊤ : EReal) := bot_lt_top
     have false : False := by grind
-    false.elim
+    nomatch false
   | ⊤, ⊤ => ⊤
   | ⊤, some (some y) =>
     have inf_le_sup := box.inf_le_sup
@@ -558,11 +558,90 @@ noncomputable def Box.midPoint (box : Box) : EReal :=
   | some (some x), ⊤ => x + 1
   | some (some x), some (some y) => (x + y) / 2
 
+-- This is a mess, I should factor out the three cases that can't exist
+
+theorem Box.absurd_1 (box : Box)
+    (hinf : box.inf = ⊤) (hsup : box.sup = ⊥) : False := by
+  have inf_le_sup := box.inf_le_sup
+  have top_le_bot : (⊤ : EReal) ≤ (⊥ : EReal) := by
+    simp only [hinf, hsup] at inf_le_sup
+    exact inf_le_sup
+  have bot_lt_top : (⊥ : EReal) < (⊤ : EReal) := bot_lt_top
+  exact (by grind)
+
+theorem Box.absurd_2 (box : Box)
+    (hinf : box.inf = ⊤) (hsup : ∃ y : ℝ, box.sup = ↑y) : False := by
+  have inf_le_sup := box.inf_le_sup
+  have ⟨y, hsupy⟩ := hsup
+  have top_le_y : (⊤ : EReal) ≤ (↑y : EReal) := by
+    rw [hinf, hsupy] at inf_le_sup
+    exact inf_le_sup
+  have y_le_top := le_top (a := (↑y : EReal))
+  have top_eq_y := LE.le.antisymm top_le_y y_le_top
+  nomatch top_eq_y
+
+theorem Box.absurd_3 (box : Box)
+    (hinf : ∃ x : ℝ, box.inf = ↑x) (hsup : box.sup = ⊥) : False := by
+  have inf_le_sup := box.inf_le_sup
+  have ⟨x, hinfx⟩ := hinf
+  have x_le_bot : (↑x : EReal) ≤ ⊥ := by
+    rw [hinfx, hsup] at inf_le_sup
+    exact inf_le_sup
+  have x_eq_bot := LE.le.antisymm x_le_bot (bot_le (a := (↑x : EReal)))
+  nomatch x_eq_bot
+
+noncomputable def Box.midPoint (box : Box) : EReal :=
+  match hinf : box.inf, hsup : box.sup with
+  | ⊥, ⊥ => ⊥
+  | ⊥, ⊤ => 0
+  | ⊥, some (some y) => y - 1
+  | ⊤, ⊥ => nomatch box.absurd_1 hinf hsup
+  | ⊤, ⊤ => ⊤
+  | ⊤, some (some y) => nomatch box.absurd_2 hinf ⟨y, hsup⟩
+  | some (some x), ⊥ => nomatch box.absurd_3 ⟨x, hinf⟩ hsup
+  | some (some x), ⊤ => x + 1
+  | some (some x), some (some y) => (x + y) / 2
+
 theorem Box.midPointMem (box : Box) : box.midPoint ∈ box := by
   constructor
-  · -- TODO: giant match on box (inf, sup) pair?
-    -- or insert midPoint expression first (yes) and tweak each clause.
-    sorry
+  · rw [Box.midPoint]
+    split
+    · rename_i hinf hsup
+      rw [hinf]
+      exact le_refl (a := ⊥)
+    · rename_i hinf hsup
+      rw [hinf]
+      exact bot_le
+    · rename_i y hinf hsup
+      rw [hinf]
+      exact bot_le
+    · rename_i hinf hsup
+      nomatch box.absurd_1 hinf hsup
+    · rename_i hinf hsup
+      rw [hinf]
+      exact le_refl (a := ⊤)
+    · rename_i y hinf hsup
+      nomatch box.absurd_2 hinf ⟨y, hsup⟩
+    · rename_i x hinf hsup
+      nomatch box.absurd_3 ⟨x, hinf⟩ hsup
+    · rename_i x hinf hsup
+      rw [hinf]
+      have x_le_succ_x : x ≤ x + 1 := by linarith
+      have : (some (some x) : Option (WithTop ℝ)) = (↑x : EReal)  := rfl
+      simp only [this]
+      exact_mod_cast x_le_succ_x
+    · rename_i x y hinf hsup
+      rw [hinf]
+      have inf_le_sup := box.inf_le_sup
+      rw [hinf, hsup] at inf_le_sup
+      have inf_le_sup' : (↑x : EReal) ≤ (↑y : EReal) := inf_le_sup
+      have : x ≤ y := by exact_mod_cast inf_le_sup'
+      have le : x ≤ (x + y) / 2 := by linarith
+      have : (some (some x) : Option (WithTop ℝ)) = (↑x : EReal) := rfl
+      simp only [this]
+      have h2 : (2 : EReal) = (↑(2 : ℝ) : EReal) := by norm_cast
+      rw [h2, ← EReal.coe_add, ← EReal.coe_div]
+      exact_mod_cast le
   · sorry
 
 noncomputable def Box.split (box : Box) : Box × Box :=
