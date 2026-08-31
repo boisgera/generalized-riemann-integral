@@ -642,7 +642,44 @@ theorem Box.midPointMem (box : Box) : box.midPoint ∈ box := by
       have h2 : (2 : EReal) = (↑(2 : ℝ) : EReal) := by norm_cast
       rw [h2, ← EReal.coe_add, ← EReal.coe_div]
       exact_mod_cast le
-  · sorry
+  · rw [Box.midPoint]
+    split
+    · rename_i hinf hsup
+      rw [hsup]
+      exact le_refl (a := ⊥)
+    · rename_i hinf hsup
+      rw [hsup]
+      exact le_top
+    · rename_i y hinf hsup
+      rw [hsup]
+      have : (some (some y) : Option (WithTop ℝ)) = (↑y : EReal) := rfl
+      simp only [this]
+      have y_sub_one_le_y : y - 1 ≤ y := by linarith
+      exact_mod_cast y_sub_one_le_y
+    · rename_i hinf hsup
+      nomatch box.absurd_1 hinf hsup
+    · rename_i hinf hsup
+      rw [hsup]
+      exact le_refl (a := ⊤)
+    · rename_i y hinf hsup
+      nomatch box.absurd_2 hinf ⟨y, hsup⟩
+    · rename_i x hinf hsup
+      nomatch box.absurd_3 ⟨x, hinf⟩ hsup
+    · rename_i x hinf hsup
+      rw [hsup]
+      exact le_top
+    · rename_i x y hinf hsup
+      rw [hsup]
+      have inf_le_sup := box.inf_le_sup
+      rw [hinf, hsup] at inf_le_sup
+      have inf_le_sup' : (↑x : EReal) ≤ (↑y : EReal) := inf_le_sup
+      have : x ≤ y := by exact_mod_cast inf_le_sup'
+      have le : (x + y) / 2 ≤ y := by linarith
+      have : (some (some y) : Option (WithTop ℝ)) = (↑y : EReal) := rfl
+      simp only [this]
+      have h2 : (2 : EReal) = (↑(2 : ℝ) : EReal) := by norm_cast
+      rw [h2, ← EReal.coe_add, ← EReal.coe_div]
+      exact_mod_cast le
 
 noncomputable def Box.split (box : Box) : Box × Box :=
   let box1 : Box := ⟨box.inf, box.midPoint, box.midPointMem.1⟩
