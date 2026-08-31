@@ -560,7 +560,9 @@ noncomputable def Box.midPoint (box : Box) : EReal :=
 
 theorem Box.midPointMem (box : Box) : box.midPoint ∈ box := by
   constructor
-  · sorry
+  · -- TODO: giant match on box (inf, sup) pair?
+    -- or insert midPoint expression first (yes) and tweak each clause.
+    sorry
   · sorry
 
 noncomputable def Box.split (box : Box) : Box × Box :=
