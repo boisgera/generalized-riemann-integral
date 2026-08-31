@@ -686,6 +686,20 @@ noncomputable def Box.split (box : Box) : Box × Box :=
   let box2 : Box := ⟨box.midPoint, box.sup, box.midPointMem.2⟩
   (box1, box2)
 
+-- TODO: show that if we have a sequence of boxes such that the next is one
+-- of the split of the current, we end up with a point where the sequence
+-- "aggregates" inside any of the neighbourhoods.
+
+-- Prior lemma: "shape" of the neighbourhoods in EReal where we can fit
+-- small enough boxes.
+
+theorem nested_boxes (boxes : ℕ → Box)
+    (h : ∀ n, boxes (n+1) = (boxes n).split.1 ∨ boxes (n+1) = (boxes n).split.2) :
+    ∃ x : EReal, ∀ N ∈ nhds x, ∃ n0, ∀ n ≥ n0, ↑(boxes n) ⊆ N := by
+  sorry
+
+
+
 -- TODO: theorem noGauge_induction
 
 
