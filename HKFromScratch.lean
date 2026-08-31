@@ -601,6 +601,25 @@ noncomputable def Box.midPoint (box : Box) : EReal :=
   | some (some x), ⊤ => x + 1
   | some (some x), some (some y) => (x + y) / 2
 
+lemma Box.midPoint_gt_bot (box : Box) : (box.sup > ⊥) → box.midPoint > ⊥ := by
+  simp only [Box.midPoint]
+  intro box_sup_gt_bot
+  split
+  · rename_i hinf hsup
+    rw [hsup] at box_sup_gt_bot
+    exact box_sup_gt_bot
+  · exact EReal.bot_lt_zero
+  · sorry -- TODO!
+  · rename_i hinf hsup
+    nomatch box.absurd_1 hinf hsup
+  · sorry -- TODO!
+  · rename_i y hinf hsup
+    nomatch box.absurd_2 hinf ⟨y, hsup⟩
+  · rename_i x hinf hsup
+    nomatch box.absurd_3 ⟨x, hinf⟩ hsup
+  · sorry -- TODO!
+  · sorry -- TODO!
+
 theorem Box.midPointMem (box : Box) : box.midPoint ∈ box := by
   constructor
   · rw [Box.midPoint]
@@ -797,6 +816,34 @@ Show that the length is / 2 at each stage and that is converges "inside"
 any Icc (neighb of...)
 -/
 
+lemma nested_boxes_acc_bot (boxes : ℕ → Box)
+    (hanti : ∀ n, boxes (n + 1) = (boxes n).split.1 ∨ boxes (n + 1) = (boxes n).split.2)
+    (hbot : ∃ j, ⊥ ∈ ⋂ i ∈ { i | i ≥ j }, (↑(boxes i) : Set EReal)) :
+    ∀ u : EReal, u > ⊥ → ∃ k, ∀ i ≥ k, ↑(boxes i) ⊆ Set.Iio u := by
+  have ⟨j, hbotj⟩ := hbot
+  have : ∀ i ≥ j, (boxes i).inf = ⊥ := by
+    intro i i_ge_j
+    cases em ((boxes i).inf > ⊥) with
+    | inl h =>
+      -- TODO: that would lead to (boxes (i + 1)).inf > ⊥ and by recursion,
+      -- a contradiction
+      sorry
+    | inr h => grind
+  have : ∀ i ≥ j, boxes (i + 1) = (boxes i).split.1 := by
+    intro i i_ge_j
+    cases hanti i with
+    | inl h => exact h
+    | inr h =>
+      simp only [Box.split] at h
+      -- TODO: show that midPoint of box i would be > -infty
+      -- FACTOR OUT        |
+      -- TODO: show the contradiction
+      sorry
+
+  have : ∀ i ≥ j + 1, ∃ a : ℝ, (boxes (i + 1) |>.sup) = ↑a := by sorry
+
+  -- TODO: compute the number of iteration required
+  sorry
 
 -- TODO: theorem noGauge_induction
 
