@@ -785,7 +785,7 @@ TODO:
   - Otherwise we can pick a x in the intersection.
     after the stage where neither -inf not +inf is in the intersection,
     at each stage the length of the interval is divided by 2.
-    Pick a nieghbourhood of x, extract a sub interval, push the iteration
+    Pick a neighbourhood of x, extract a sub interval, push the iteration
     and show that we end up in it.
   - The infinity special case is quite similar.
 
