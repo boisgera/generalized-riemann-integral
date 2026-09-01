@@ -406,6 +406,96 @@ As a consequence, we have:
 
 
 /-!
+Length
+--------------------------------------------------------------------------------
+-/
+
+/-!
+Nota: do we need/want a length that returns values in ENNReal instead?
+-/
+/-!
+Nota: the naive definition is borked for [⊥, ⊥] and [⊤, ⊤],
+since ⊥ - ⊥ = ⊥ and ⊤ - ⊤ = ⊥ ... instead of 0!
+ -/
+noncomputable def Interval.length : Interval → EReal
+  | .empty => 0
+  | .ioo inf sup _ | .ioc inf sup _ | .ico inf sup _  =>
+    sup - inf
+  | .icc inf sup _ =>
+    if inf = sup then 0 else sup - inf
+
+theorem Interval.length_nonneg (i : Interval) : i.length ≥ 0 := by
+  cases i with
+  | empty =>
+    rw [Interval.length]
+  | ioo inf sup inf_lt_sup
+  | ioc inf sup inf_lt_sup
+  | ico inf sup inf_lt_sup =>
+    rw [Interval.length]
+    have inf_le_sup := le_of_lt inf_lt_sup
+    have sup_ne_bot : (sup ≠ ⊥) := by grind
+    have inf_ne_top : (inf ≠ ⊤) := by grind
+    apply (EReal.sub_nonneg (Or.inr inf_ne_top) (Or.inl sup_ne_bot)).mpr
+    exact inf_le_sup
+  | icc inf sup inf_le_sup =>
+    rw [Interval.length]
+    split
+    · apply le_refl
+    · rename_i inf_ne_sup -- and from there we are back in the common case.
+      have sup_ne_bot : (sup ≠ ⊥) := by grind
+      have inf_ne_top : (inf ≠ ⊤) := by grind
+      apply (EReal.sub_nonneg (Or.inr inf_ne_top) (Or.inl sup_ne_bot)).mpr
+      exact inf_le_sup
+
+-- Combine EReal.top_sub and EReal.sub_bot (needed?)
+theorem EReal.sub_eq_top_iff (x y : EReal) :
+    (x - y = ⊤) ↔ (x = ⊤ ∧ y ≠ ⊤) ∨ (y = ⊥ ∧ x ≠ ⊥) := by
+  constructor
+  · sorry
+  · intro h
+    rcases h with ⟨x_eq_top, y_ne_top⟩ | ⟨y_eq_bot, x_ne_bot⟩
+    · rw [x_eq_top]
+      exact EReal.top_sub y_ne_top
+    · rw [y_eq_bot]
+      exact EReal.sub_bot x_ne_bot
+
+-- TODO: use EReal.sub_eq_top_iff
+theorem Interval.length_finite (i : Interval)
+    (inf_ne_bot : i.inf ≠ ⊥) (sup_ne_top : i.sup ≠ ⊤)
+    : i.length < ⊤ := by
+  cases h : i with
+  | empty =>
+    rw [Interval.length]
+    apply EReal.zero_lt_top
+  | ioo inf sup inf_lt_sup
+  | ioc inf sup inf_lt_sup
+  | ico inf sup inf_lt_sup =>
+    rw [Interval.length]
+    have sup_sub_inf_ne_top : sup - inf ≠ ⊤ := by
+      sorry
+    sorry
+  | icc inf sup inf_le_sup =>
+    sorry
+
+/-!
+The function that maps infinite lengths to zero already exist:
+-/
+#print EReal.toReal
+-- def EReal.toReal : EReal → ℝ :=
+-- fun x ↦
+--   match x with
+--   | none => 0
+--   | some none => 0
+--   | some (some x) => x
+
+noncomputable def Interval.lengthReal := EReal.toReal ∘ Interval.length
+
+noncomputable def Box.length (box : Box) : EReal := Interval.length box
+
+noncomputable def Box.lengthReal (box : Box) : EReal := Interval.lengthReal box
+
+
+/-!
 Tagged Stuff
 --------------------------------------------------------------------------------
 -/
@@ -477,6 +567,8 @@ def TaggedBoxes.subordinateTo {ι} [Fintype ι] (π : TaggedBoxes ι)
     ∀ (i : ι), ↑(π.box i) ⊆ γ (π.tag i)
 
 notation:50 π " ≼ " γ => TaggedBoxes.subordinateTo π γ
+
+
 
 /-!
 Cousin Lemma
@@ -743,6 +835,7 @@ theorem EReal.mem_nhds_real_iff {s : Set EReal} {a : EReal}
     apply (mem_nhds_iff_exists_Ioo_subset' hl hr).mpr
     grind
 
+
 /-!
 --------------------------------------------------------------------------------
 -/
@@ -818,6 +911,37 @@ Show that the length is / 2 at each stage and that is converges "inside"
 any Icc (neighb of...)
 -/
 
+lemma nested_boxes_finite (boxes : ℕ → Box)
+    (hanti : ∀ n,
+      boxes (n + 1) = (boxes n).split.1 ∨
+      boxes (n + 1) = (boxes n).split.2)
+    (i : ℕ)
+    (hfin : (boxes i).inf ≠ ⊥ ∧ (boxes i).sup ≠ ⊤) :
+    ∀ j ≥ i,
+      (boxes j).length ≤ (boxes i).length / 2 ^ (j - i)
+  := by sorry
+
+-- And we need a bit more actually to get:
+lemma nested_boxes_finite' (boxes : ℕ → Box)
+    (hanti : ∀ n,
+      boxes (n + 1) = (boxes n).split.1 ∨
+      boxes (n + 1) = (boxes n).split.2)
+    (i : ℕ)
+    (hfin : (boxes i).inf ≠ ⊥ ∧ (boxes i).sup ≠ ⊤) :
+    Filter.Tendsto (Box.length ∘ boxes) Filter.atTop (𝓝 0) := by
+  -- Let's transform the goal into a classic ε-δ goal.
+  rw [tendsto_order]
+  simp only [Filter.eventually_atTop, Function.comp_apply]
+  constructor
+  · intro a' a'_neg
+    use 0
+    intro i zero_ne_i
+    have : 0 ≤ (boxes i).length := by
+      apply Interval.length_nonneg
+    grind
+  · intro ε ε_pos
+    sorry
+
 lemma nested_boxes_acc_bot (boxes : ℕ → Box)
     (hanti : ∀ n,
       boxes (n + 1) = (boxes n).split.1 ∨
@@ -881,25 +1005,6 @@ up "fitting into" any neighbourhood of the limit point by construction.
 Riemann sums
 --------------------------------------------------------------------------------
 -/
-
-/-- Nota: do we need a length that returns values in ENNReal instead? -/
-noncomputable def Interval.length : Interval → EReal
-  | .empty => 0
-  | .ioo inf sup _ | .ioc inf sup _ | .ico inf sup _ | icc inf sup _ =>
-    sup - inf
-
-/-!
-The function that maps infinite lengths to zero already exist:
--/
-#print EReal.toReal
--- def EReal.toReal : EReal → ℝ :=
--- fun x ↦
---   match x with
---   | none => 0
---   | some none => 0
---   | some (some x) => x
-
-noncomputable def Interval.lengthReal := EReal.toReal ∘ Interval.length
 
 /-!
 TODO: later a version of the sum that accepts integrands with extended real
