@@ -605,20 +605,22 @@ lemma Box.midPoint_gt_bot (box : Box) : (box.sup > ⊥) → box.midPoint > ⊥ :
   simp only [Box.midPoint]
   intro box_sup_gt_bot
   split
-  · rename_i hinf hsup
+  next hinf hsup =>
     rw [hsup] at box_sup_gt_bot
     exact box_sup_gt_bot
-  · exact EReal.bot_lt_zero
-  · sorry -- TODO!
-  · rename_i hinf hsup
+  next => exact EReal.bot_lt_zero
+  next y hinf hsup =>
+    apply EReal.bot_lt_coe
+  next hinf hsup =>
     nomatch box.absurd_1 hinf hsup
-  · sorry -- TODO!
-  · rename_i y hinf hsup
+  next =>
+    exact bot_lt_top
+  next y hinf hsup =>
     nomatch box.absurd_2 hinf ⟨y, hsup⟩
-  · rename_i x hinf hsup
+  next x hinf hsup =>
     nomatch box.absurd_3 ⟨x, hinf⟩ hsup
-  · sorry -- TODO!
-  · sorry -- TODO!
+  · apply EReal.bot_lt_coe
+  · apply EReal.bot_lt_coe
 
 theorem Box.midPointMem (box : Box) : box.midPoint ∈ box := by
   constructor
@@ -817,27 +819,35 @@ any Icc (neighb of...)
 -/
 
 lemma nested_boxes_acc_bot (boxes : ℕ → Box)
-    (hanti : ∀ n, boxes (n + 1) = (boxes n).split.1 ∨ boxes (n + 1) = (boxes n).split.2)
+    (hanti : ∀ n,
+      boxes (n + 1) = (boxes n).split.1 ∨
+      boxes (n + 1) = (boxes n).split.2)
     (hbot : ∃ j, ⊥ ∈ ⋂ i ∈ { i | i ≥ j }, (↑(boxes i) : Set EReal)) :
     ∀ u : EReal, u > ⊥ → ∃ k, ∀ i ≥ k, ↑(boxes i) ⊆ Set.Iio u := by
   have ⟨j, hbotj⟩ := hbot
+
+  have bot_in_box: ∀ i ≥ j, ⊥ ∈ boxes i := by
+    intro i i_ge_j
+    simp only [Set.mem_iInter] at hbotj
+    specialize hbotj i i_ge_j
+    exact hbotj
+
   have : ∀ i ≥ j, (boxes i).inf = ⊥ := by
     intro i i_ge_j
-    cases em ((boxes i).inf > ⊥) with
-    | inl h =>
-      -- TODO: that would lead to (boxes (i + 1)).inf > ⊥ and by recursion,
-      -- a contradiction
-      sorry
-    | inr h => grind
+    have bot_in_box_i_j := bot_in_box i i_ge_j
+    rw [show (boxes i).inf = (Interval.inf (boxes i)) from by rfl]
+    have : ⊥ ∈ (boxes i).toInterval.toSet := by
+      exact bot_in_box_i_j
+    rw [Interval.inf_eq_sInf_coe]
+    exact le_bot_iff.mp (sInf_le this)
+
+  -- TODO: this is false, we can also have boxes i = [⊥, ⊥]
   have : ∀ i ≥ j, boxes (i + 1) = (boxes i).split.1 := by
     intro i i_ge_j
     cases hanti i with
     | inl h => exact h
     | inr h =>
       simp only [Box.split] at h
-      -- TODO: show that midPoint of box i would be > -infty
-      -- FACTOR OUT        |
-      -- TODO: show the contradiction
       sorry
 
   have : ∀ i ≥ j + 1, ∃ a : ℝ, (boxes (i + 1) |>.sup) = ↑a := by sorry
