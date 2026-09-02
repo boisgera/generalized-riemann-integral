@@ -956,6 +956,23 @@ lemma nested_boxes_finite (boxes : ℕ → Box)
       (boxes j).length ≤ (boxes i).length / 2 ^ (j - i)
   := by sorry
 
+#check pow_unbounded_of_one_lt
+-- pow_unbounded_of_one_lt.{u_3} {R : Type u_3} [Semiring R] [PartialOrder R] [IsStrictOrderedRing R] [Archimedean R]
+--  {y : R} [ExistsAddOfLE R] (x : R) (hy1 : 1 < y) : ∃ n, x < y ^ n
+
+lemma quant_to_quali
+    (x : ℕ → ℝ) (j : ℕ)
+    (ε : ℝ) (ε_pos : ε > 0)
+    (h : ∀ i ≥ j, x i ≤ (x j) / 2 ^ (i - j))
+    : ∃ k, ∀ i ≥ k, x i < ε := by
+  -- TODO:
+  -- - split on the property that ∀ j ≥ i, x j > 0 or not.
+  -- - the "easy case" if when the property is false. Then show by induction
+  --   that x k ≤ 0 after the first value that satisfies this property and
+  --   conclude in this case.
+  -- - In the "meaty" case, reduce the result to pow_unbounded_of_one_lt
+  sorry
+
 -- The qualitative version.
 lemma nested_boxes_finite' (boxes : ℕ → Box)
     (hanti : ∀ n,
