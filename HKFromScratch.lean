@@ -976,6 +976,9 @@ lemma nested_boxes_finite' (boxes : ℕ → Box)
     grind
   · intro ε ε_pos
     have := nested_boxes_finite boxes hanti i hfin
+    -- TODO: show that the finite bounds holds for any j ≥ i
+    -- TODO: show that you can replace .length with .lengthReal in
+    -- this and the goal
     sorry
 
 lemma nested_boxes_acc_bot (boxes : ℕ → Box)
