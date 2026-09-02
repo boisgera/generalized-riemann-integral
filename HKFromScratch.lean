@@ -417,6 +417,15 @@ Nota: do we need/want a length that returns values in ENNReal instead?
 Nota: the naive definition is borked for [⊥, ⊥] and [⊤, ⊤],
 since ⊥ - ⊥ = ⊥ and ⊤ - ⊤ = ⊥ ... instead of 0!
  -/
+
+/-!
+Nota: it's *maybe* stupid to try to "fix" the length for arguments that
+arguably are not used. Why spend some energy on what could be considered
+junk values instead of adding some restriction in the hypotheses when we
+need a property? Why not pick the simplest expression that exist (sub)
+and roll with it? (That's a fair question)
+ -/
+
 noncomputable def Interval.length : Interval → EReal
   | .empty => 0
   | .ioo inf sup _ | .ioc inf sup _ | .ico inf sup _  =>
@@ -447,11 +456,16 @@ theorem Interval.length_nonneg (i : Interval) : i.length ≥ 0 := by
       apply (EReal.sub_nonneg (Or.inr inf_ne_top) (Or.inl sup_ne_bot)).mpr
       exact inf_le_sup
 
+
+#synth Sub EReal
+-- EReal.instSubNegZeroMonoid.toSub
+
 -- Combine EReal.top_sub and EReal.sub_bot (needed?)
 theorem EReal.sub_eq_top_iff (x y : EReal) :
     (x - y = ⊤) ↔ (x = ⊤ ∧ y ≠ ⊤) ∨ (y = ⊥ ∧ x ≠ ⊥) := by
   constructor
-  · sorry
+  · intro sub_eq_top
+    sorry
   · intro h
     rcases h with ⟨x_eq_top, y_ne_top⟩ | ⟨y_eq_bot, x_ne_bot⟩
     · rw [x_eq_top]
