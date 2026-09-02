@@ -456,16 +456,15 @@ theorem Interval.length_nonneg (i : Interval) : i.length ≥ 0 := by
       apply (EReal.sub_nonneg (Or.inr inf_ne_top) (Or.inl sup_ne_bot)).mpr
       exact inf_le_sup
 
-
-#synth Sub EReal
--- EReal.instSubNegZeroMonoid.toSub
-
--- Combine EReal.top_sub and EReal.sub_bot (needed?)
 theorem EReal.sub_eq_top_iff (x y : EReal) :
     (x - y = ⊤) ↔ (x = ⊤ ∧ y ≠ ⊤) ∨ (y = ⊥ ∧ x ≠ ⊥) := by
   constructor
   · intro sub_eq_top
-    sorry
+    cases x <;> cases y <;>
+      simp only [EReal.bot_sub, EReal.sub_top, EReal.top_sub_bot, EReal.top_sub_coe,
+        EReal.coe_sub_bot, ← EReal.coe_sub, EReal.coe_ne_top, bot_ne_top] at sub_eq_top <;>
+      simp only [EReal.coe_ne_top, EReal.coe_ne_bot, bot_ne_top, ne_eq, and_true, or_true,
+        true_or, not_false_eq_true]
   · intro h
     rcases h with ⟨x_eq_top, y_ne_top⟩ | ⟨y_eq_bot, x_ne_bot⟩
     · rw [x_eq_top]
@@ -473,7 +472,6 @@ theorem EReal.sub_eq_top_iff (x y : EReal) :
     · rw [y_eq_bot]
       exact EReal.sub_bot x_ne_bot
 
--- TODO: use EReal.sub_eq_top_iff
 theorem Interval.length_finite (i : Interval)
     (inf_ne_bot : i.inf ≠ ⊥) (sup_ne_top : i.sup ≠ ⊤)
     : i.length < ⊤ := by
@@ -486,10 +484,32 @@ theorem Interval.length_finite (i : Interval)
   | ico inf sup inf_lt_sup =>
     rw [Interval.length]
     have sup_sub_inf_ne_top : sup - inf ≠ ⊤ := by
-      sorry
-    sorry
+      by_contra
+      have := (EReal.sub_eq_top_iff sup inf).mp this
+      rcases this with ⟨sup_eq_top, _⟩ | ⟨inf_eq_bot, _⟩
+      · have sup_eq_interval_sup: sup = i.sup := by rw [h, Interval.sup]
+        rw [sup_eq_interval_sup] at sup_eq_top
+        exact absurd sup_eq_top sup_ne_top
+      · have inf_eq_interval_inf: inf = i.inf := by rw [h, Interval.inf]
+        rw [inf_eq_interval_inf] at inf_eq_bot
+        exact absurd inf_eq_bot inf_ne_bot
+    exact lt_top_iff_ne_top.mpr sup_sub_inf_ne_top
   | icc inf sup inf_le_sup =>
-    sorry
+    rw [Interval.length]
+    split
+    · exact EReal.zero_lt_top
+    · rename_i inf_ne_sup
+      have sup_sub_inf_ne_top : sup - inf ≠ ⊤:= by
+        by_contra
+        rw [EReal.sub_eq_top_iff] at this
+        rcases this with ⟨sup_eq_top, if_ne_top⟩ | ⟨inf_eq_bot, sup_ne_bot⟩
+        · have sup_eq_interval_sup: sup = i.sup := by rw [h, Interval.sup]
+          rw [sup_eq_interval_sup] at sup_eq_top
+          exact absurd sup_eq_top sup_ne_top
+        · have inf_eq_interval_inf: inf = i.inf := by rw [h, Interval.inf]
+          rw [inf_eq_interval_inf] at inf_eq_bot
+          exact absurd inf_eq_bot inf_ne_bot
+      exact lt_top_iff_ne_top.mpr sup_sub_inf_ne_top
 
 /-!
 The function that maps infinite lengths to zero already exist:
