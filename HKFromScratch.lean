@@ -945,6 +945,7 @@ Show that the length is / 2 at each stage and that is converges "inside"
 any Icc (neighb of...)
 -/
 
+-- The quantitative/explicit version
 lemma nested_boxes_finite (boxes : ℕ → Box)
     (hanti : ∀ n,
       boxes (n + 1) = (boxes n).split.1 ∨
@@ -955,7 +956,7 @@ lemma nested_boxes_finite (boxes : ℕ → Box)
       (boxes j).length ≤ (boxes i).length / 2 ^ (j - i)
   := by sorry
 
--- And we need a bit more actually to get:
+-- The qualitative version.
 lemma nested_boxes_finite' (boxes : ℕ → Box)
     (hanti : ∀ n,
       boxes (n + 1) = (boxes n).split.1 ∨
@@ -974,6 +975,7 @@ lemma nested_boxes_finite' (boxes : ℕ → Box)
       apply Interval.length_nonneg
     grind
   · intro ε ε_pos
+    have := nested_boxes_finite boxes hanti i hfin
     sorry
 
 lemma nested_boxes_acc_bot (boxes : ℕ → Box)
