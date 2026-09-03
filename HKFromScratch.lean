@@ -960,10 +960,40 @@ lemma nested_boxes_finite (boxes : ℕ → Box)
 -- pow_unbounded_of_one_lt.{u_3} {R : Type u_3} [Semiring R] [PartialOrder R] [IsStrictOrderedRing R] [Archimedean R]
 --  {y : R} [ExistsAddOfLE R] (x : R) (hy1 : 1 < y) : ∃ n, x < y ^ n
 
+lemma omg_i_feel_so_much_pain (x : ℕ → ℝ) (j : ℕ)
+    (hpos : ∀ i ≥ j, x j > 0)
+    (hbound : ∀ i ≥ j, x (i + 1) ≤ (x i) / 2) :
+    ∃ c > 0, ∀ i, x i ≤ c / 2 ^ i := by
+
+  have : ∃ c > 0, ∀ i ≥ j, x i ≤ c / 2 ^ i := by
+    use (x j) * 2 ^ j
+    constructor
+    · have := hpos j (show j ≤ j from le_rfl)
+      positivity
+    · intro i i_ge_j
+      induction i, i_ge_j using Nat.le_induction with
+      | base =>
+        specialize hbound j le_rfl
+        field_simp
+        apply le_rfl
+      | succ n hn ih =>
+        field_simp at *
+        specialize hbound n hn
+        have hbound' : x (n + 1) * 2 * 2 ^ n ≤ (x n) * 2 ^ n := mul_le_mul_of_nonneg_right
+          (hbc := hbound)
+          (ha := show (0 ≤ 2 ^ n) from by positivity)
+        clear hbound
+        have := le_trans hbound' ih
+        conv at this =>
+          left ; rw [mul_assoc]
+        conv at this =>
+          left ; right; rw [<- pow_succ']
+        exact this
+  sorry -- this is gonna be a mess
+
 lemma quant_to_quali
-    (x : ℕ → ℝ) (j : ℕ)
-    (ε : ℝ) (ε_pos : ε > 0)
-    (h : ∀ i ≥ j, x i ≤ (x j) / 2 ^ (i - j))
+    (x : ℕ → ℝ) (ε : ℝ) (ε_pos : ε > 0)
+    (hb : ∃ j, ∀ i ≥ j, x (i + 1) ≤ (x i) / 2)
     : ∃ k, ∀ i ≥ k, x i < ε := by
   -- TODO:
   -- - split on the property that ∀ j ≥ i, x j > 0 or not.
@@ -971,7 +1001,45 @@ lemma quant_to_quali
   --   that x k ≤ 0 after the first value that satisfies this property and
   --   conclude in this case.
   -- - In the "meaty" case, reduce the result to pow_unbounded_of_one_lt
-  sorry
+  have ⟨j, hbj⟩ := hb
+  by_cases hpos : ∀ i ≥ j, x i > 0
+  · have hb' : ∃ c > 0, ∀ i, x i ≤ c / 2 ^ i := by
+      sorry -- that's gonna require some work ... factor out?
+    clear hb
+    have ⟨c, c_pos, hb'c⟩ := hb' ; clear hb'
+    have hi : ∃ i, c / 2 ^ i < ε := by -- use pow_unbounded_of_one_lt (2^n unbounded)
+      have ⟨i, hi'⟩ := pow_unbounded_of_one_lt (c / ε) (y := 2) (show 1 < 2 from by norm_num)
+      use i
+      rw [div_lt_iff₀ ε_pos] at hi'
+      rw [div_lt_iff₀ (by positivity)]
+      rw [mul_comm] at hi'
+      exact hi'
+    have ⟨j', hj'⟩ : ∃ j, ∀ i ≥ j, c / 2 ^ i < ε := by
+      -- use hi and that x / 2 ≤ x ; induction
+      let ⟨j, hij⟩ := hi
+      rename_i i
+      use j
+      intro i i_ge_j
+      induction i, i_ge_j using Nat.le_induction with
+      | base => exact hij
+      | succ n hn ih =>
+        simp only [pow_add]
+        simp only [div_mul_eq_div_div]
+        norm_num
+        have hp : c / 2 ^ n ≥ 0 := by positivity
+        have := div_le_self (ha := hp) (hb := show 2 ≥ 1 from by norm_num)
+        apply lt_of_le_of_lt this ih
+    clear hi
+    let k := max j j'
+    have k_ge_j : k ≥ j := by grind
+    have k_ge_j' : k ≥ j' := by grind
+    use k
+    intro i i_ge_k
+    specialize hb'c i
+    specialize hj' i (show i ≥ j' from by linarith)
+    apply lt_of_le_of_lt (b := c / 2 ^ i)
+    repeat assumption
+  · sorry
 
 -- The qualitative version.
 lemma nested_boxes_finite' (boxes : ℕ → Box)
