@@ -1075,7 +1075,18 @@ lemma quant_to_quali
     specialize this i i_ge_k
     linarith
 
--- The qualitative version.
+-- The quantitative version. TODO. We still have a mismatch here in that
+-- we have not proved that all the length are finite.
+lemma nested_boxes_finite_quanti (boxes : ℕ → Box)
+    (hanti : ∀ n,
+      boxes (n + 1) = (boxes n).split.1 ∨
+      boxes (n + 1) = (boxes n).split.2)
+    (j : ℕ)
+    (hfin : (boxes j).inf ≠ ⊥ ∧ (boxes j).sup ≠ ⊤) :
+    (∀ i ≥ j, (boxes (i + 1)).length ≤ ((boxes i).length / 2)) :=
+    by sorry
+
+-- The qualitative version. Wire what we know so far.
 lemma nested_boxes_finite' (boxes : ℕ → Box)
     (hanti : ∀ n,
       boxes (n + 1) = (boxes n).split.1 ∨
