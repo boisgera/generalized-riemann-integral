@@ -961,10 +961,9 @@ lemma nested_boxes_finite (boxes : ℕ → Box)
 --  {y : R} [ExistsAddOfLE R] (x : R) (hy1 : 1 < y) : ∃ n, x < y ^ n
 
 lemma omg_i_feel_so_much_pain (x : ℕ → ℝ) (j : ℕ)
-    (hpos : ∀ i ≥ j, x j > 0)
+    (hpos : ∀ i ≥ j, x i > 0)
     (hbound : ∀ i ≥ j, x (i + 1) ≤ (x i) / 2) :
     ∃ c > 0, ∀ i, x i ≤ c / 2 ^ i := by
-
   have : ∃ c > 0, ∀ i ≥ j, x i ≤ c / 2 ^ i := by
     use (x j) * 2 ^ j
     constructor
@@ -1025,7 +1024,7 @@ lemma quant_to_quali
   have ⟨j, hbj⟩ := hb
   by_cases hpos : ∀ i ≥ j, x i > 0
   · have hb' : ∃ c > 0, ∀ i, x i ≤ c / 2 ^ i := by
-      sorry -- that's gonna require some work ... factor out?
+      apply omg_i_feel_so_much_pain x j hpos hbj
     clear hb
     have ⟨c, c_pos, hb'c⟩ := hb' ; clear hb'
     have hi : ∃ i, c / 2 ^ i < ε := by -- use pow_unbounded_of_one_lt (2^n unbounded)
@@ -1060,7 +1059,21 @@ lemma quant_to_quali
     specialize hj' i (show i ≥ j' from by linarith)
     apply lt_of_le_of_lt (b := c / 2 ^ i)
     repeat assumption
-  · sorry
+  · push Not at hpos
+    have ⟨k, k_ge_j, x_k_nonpos⟩ := hpos
+    clear hpos
+    use k
+    have : ∀ i ≥ k, x i ≤ 0 := by
+      intro i' i'_ge_j
+      induction i', i'_ge_j using Nat.le_induction with
+      | base => exact x_k_nonpos
+      | succ n ih hn =>
+        specialize hbj n (show n ≥ j from by linarith)
+        have : x n / 2 ≤ 0 := by grind
+        exact le_trans hbj this
+    intro i i_ge_k
+    specialize this i i_ge_k
+    linarith
 
 -- The qualitative version.
 lemma nested_boxes_finite' (boxes : ℕ → Box)
