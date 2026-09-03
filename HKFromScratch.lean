@@ -989,7 +989,28 @@ lemma omg_i_feel_so_much_pain (x : ℕ → ℝ) (j : ℕ)
         conv at this =>
           left ; right; rw [<- pow_succ']
         exact this
-  sorry -- this is gonna be a mess
+  obtain ⟨c, c_pos, hc⟩ := this
+  -- Purely finite fact: any function is bounded (in this "c / 2 ^ i" sense)
+  -- on any finite initial segment {0, ..., n - 1}, regardless of hypotheses.
+  have hfin : ∀ (y : ℕ → ℝ) (n : ℕ), ∃ d > 0, ∀ i < n, y i ≤ d / 2 ^ i := by
+    intro y n
+    induction n with
+    | zero => exact ⟨1, by norm_num, by intro i hi; omega⟩
+    | succ n ih =>
+      obtain ⟨d, d_pos, hd⟩ := ih
+      refine ⟨max d (y n * 2 ^ n + 1), lt_max_of_lt_left d_pos, ?_⟩
+      intro i hi
+      rcases Nat.lt_succ_iff_lt_or_eq.mp hi with h | h
+      · exact le_trans (hd i h) (by gcongr; exact le_max_left _ _)
+      · subst h
+        rw [le_div_iff₀ (by positivity)]
+        exact le_trans (by linarith) (le_max_right d (y i * 2 ^ i + 1))
+  obtain ⟨d, d_pos, hd⟩ := hfin x j
+  refine ⟨max c d, lt_max_of_lt_left c_pos, ?_⟩
+  intro i
+  rcases lt_or_ge i j with hij | hij
+  · exact le_trans (hd i hij) (by gcongr; exact le_max_right c d)
+  · exact le_trans (hc i hij) (by gcongr; exact le_max_left c d)
 
 lemma quant_to_quali
     (x : ℕ → ℝ) (ε : ℝ) (ε_pos : ε > 0)
