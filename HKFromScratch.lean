@@ -24,82 +24,6 @@ TODO:
 -/
 
 
-#print EReal
--- def EReal : Type :=
--- WithBot (WithTop ℝ)
-
-/-!
-`WithTop` and `WithBot` are mere `Option` wrappers.
--/
-#print WithTop
--- def WithTop.{u_2} : Type u_2 → Type u_2 :=
--- fun α ↦ Option α
-
-#print WithBot
--- def WithBot.{u_2} : Type u_2 → Type u_2 :=
--- fun α ↦ Option α
-
-noncomputable def inf : EReal := ⊤
-noncomputable def negInf : EReal := ⊥
-noncomputable def one : EReal := (1 : Real)
-
--- We can coerce real numbers as extended reals
-
--- toString doesn't support real numbers, but repr does
-
-#eval repr (3.14 : Real)
--- Real.ofCauchy (sorry /- (157 : Rat)/50, (157 : Rat)/50, (157 : Rat)/50, (157 : Rat)/50, (157 : Rat)/50, (157 : Rat)/50, (157 : Rat)/50, (157 : Rat)/50, (157 : Rat)/50, (157 : Rat)/50, ... -/)
-
--- ... but extended real numbers support nothing. (That's fine)
-
--- noncomputable: can't be #eval'd but can be #reduce'd
-#reduce one
--- some (some Real.wrapped✝.1)
-
-#reduce inf
--- some none
-
-#reduce negInf
--- none
-
--- Intermediate coercion needed since extended reals don't support OfScientific
-#reduce ((4.5 : Real) : EReal)
--- some
---   (some
---     {
---       cauchy :=
---         Quot.mk (fun f g ↦ (f - g).LimZero) ⟨fun x ↦ { num := Int.ofNat 9, den := 2, den_nz := ⋯, reduced := ⋯ }, ⋯⟩ })
-
-
-/-!
-I should explore the [extended real numbers API doc] thoroughly.
-
-[extended real numbers API doc]: <https://leanprover-community.github.io/mathlib4_docs/Mathlib/Data/EReal/Basic.html>
-
--/
-
-/-!
-I can use Icc, Ioo, etc. as usual since there is a linear order on EReal.
-
--/
-
-def I : Set EReal := Set.Icc (0 : EReal) (1 : EReal)
-
-#check Set.Icc
--- Set.Icc.{u_1} {α : Type u_1} [Preorder α] (a b : α) : Set α
-
-#reduce I
--- fun x ↦ 0 ≤ x ∧ x ≤ 1
-
-example : Set.Icc (⊥ : EReal) (⊤ : EReal) = Set.univ := by
-  rw [← Set.Icc_def, Set.univ]
-  ext x
-  simp only [Set.mem_setOf]
-  rw [iff_true]
-  exact And.intro bot_le le_top
-
-
-
 /-!
 Definition of Intervals and Boxes
 --------------------------------------------------------------------------------
@@ -1074,6 +998,21 @@ lemma quant_to_quali
     intro i i_ge_k
     specialize this i i_ge_k
     linarith
+
+lemma quant_to_quali_extended
+    (x : ℕ → EReal) (ε : EReal) (ε_pos : ε > 0)
+    (hb : ∃ j, (∀ i ≥ j, x (i + 1) ≤ (x i) / 2) ∧ (x j < ⊤))
+    : ∃ k, ∀ i ≥ k, x i < ε := by
+    have ⟨j, hbj, x_j_finite⟩ := hb
+    clear hb
+    have x_all_finite : ∀ i ≥ j, x i < ⊤ := by
+      intro i i_ge_j
+      induction i, i_ge_j using Nat.le_induction with
+      | base => exact x_j_finite
+      | succ n ih hn =>
+        specialize hbj n ih
+        sorry
+    sorry
 
 -- The quantitative version. TODO. We still have a mismatch here in that
 -- we have not proved that all the length are finite.
