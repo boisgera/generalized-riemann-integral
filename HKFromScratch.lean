@@ -869,6 +869,8 @@ Show that the length is / 2 at each stage and that is converges "inside"
 any Icc (neighb of...)
 -/
 
+
+
 -- The quantitative/explicit version
 lemma nested_boxes_finite (boxes : ℕ → Box)
     (hanti : ∀ n,
@@ -999,6 +1001,45 @@ lemma quant_to_quali
     specialize this i i_ge_k
     linarith
 
+theorem EReal.half_lt_top (x : EReal) (x_lt_top : x < ⊤) : x / 2 < ⊤ := by
+  simp only [lt_top_iff_ne_top] at *
+  rw [DivInvMonoid.div_eq_mul_inv]
+  rw [show (2⁻¹ : EReal) = (↑(2⁻¹ : Real)) from by norm_cast]
+  simp only [HMul.hMul, Mul.mul, EReal.mul]
+  -- At this point, the goal is an expression embedding a 3*3 pattern match on
+  -- a pair extended real numbers, but most of the cases are absurd.
+  split -- 3*3 = 9 goals
+  any_goals contradiction -- down to 2 goals!
+  · rename_i y h_eq
+    have : (↑y : EReal) = (↑2⁻¹ : EReal) := h_eq.symm
+    have : y = 2⁻¹ := by
+      apply EReal.coe_eq_coe_iff.mp
+      exact this
+    have : y > 0 := by
+      rw [this]
+      norm_num
+    simp [this]
+  · apply EReal.coe_ne_top
+
+theorem EReal.half_bot_eq_bot : (⊥ : EReal) / 2 = ⊥ := by
+  simp only [HDiv.hDiv, Div.div, DivInvMonoid.div', HMul.hMul, Mul.mul, EReal.mul]
+  split
+  any_goals contradiction -- only 1/9 goal left!
+  rename_i x1 x y _ eq
+  have l1: (some (some y) : EReal) = (↑y : EReal) := by rfl
+  have l2: EReal.inv 2 = ↑(2: Real)⁻¹ := by
+    rw [EReal.coe_inv]
+    simp only [Inv.inv]
+    rfl
+  have : (↑(2 : ℝ)⁻¹ : EReal) = ↑y := by
+    simp only [l1, l2] at eq
+    exact eq
+  have : 2⁻¹ = y := by
+    apply EReal.coe_injective this
+  have y_pos : 0 < y := by positivity
+  simp only [y_pos]
+  simp only [if_true]
+
 lemma quant_to_quali_extended
     (x : ℕ → EReal) (ε : EReal) (ε_pos : ε > 0)
     (hb : ∃ j, (∀ i ≥ j, x (i + 1) ≤ (x i) / 2) ∧ (x j < ⊤))
@@ -1011,7 +1052,33 @@ lemma quant_to_quali_extended
       | base => exact x_j_finite
       | succ n ih hn =>
         specialize hbj n ih
-        sorry
+        have : x n / 2 < ⊤ := EReal.half_lt_top (x n) hn
+        exact lt_of_le_of_lt hbj this
+    -- TODO: argh, we need to exclude first the case where some x i = ⊥
+    have exists_eq_bot_ok : (∃ i ≥ j, x i = ⊥) → (∃ k, ∀ i ≥ k, x i < ε) := by
+      intro exists_eq_bot
+      have ⟨i, i_ge_j, x_i_eq_bot⟩ := exists_eq_bot; clear exists_eq_bot
+      have : ∀ k ≥ i, x k = ⊥ := by
+        intro k k_ge_i
+        induction k, k_ge_i using Nat.le_induction with
+        | base => exact x_i_eq_bot
+        | succ n ih hn =>
+          specialize hbj n (le_trans i_ge_j ih)
+          rw [hn] at hbj
+          have : (⊥ : EReal) / 2 = ⊥ := by
+
+            sorry -- TODO: use EReal.half_bot_eq_bot, see above
+          rw [this] at hbj
+          sorry
+
+      sorry
+
+    -- TODO: that holds only in the "good branch" where x i ≠ ⊥.
+    have shadow : ∃ (y : ℕ → ℝ), ∀ i ≥ j, x i = ↑(y i) := by
+      sorry
+    -- TODO: finiteness provides a real-valued sequence y such that ↑y = x
+    -- TODO: apply quant_to_quali to this sequence
+    -- TODO: conclude by coercion
     sorry
 
 -- The quantitative version. TODO. We still have a mismatch here in that
