@@ -1001,8 +1001,7 @@ lemma quant_to_quali
     specialize this i i_ge_k
     linarith
 
-theorem EReal.half_lt_top (x : EReal) (x_lt_top : x < ⊤) : x / 2 < ⊤ := by
-  simp only [lt_top_iff_ne_top] at *
+theorem EReal.half_ne_top (x : EReal) (x_lt_top : x ≠ ⊤) : x / 2 ≠ ⊤ := by
   rw [DivInvMonoid.div_eq_mul_inv]
   rw [show (2⁻¹ : EReal) = (↑(2⁻¹ : Real)) from by norm_cast]
   simp only [HMul.hMul, Mul.mul, EReal.mul]
@@ -1042,19 +1041,23 @@ theorem EReal.half_bot_eq_bot : (⊥ : EReal) / 2 = ⊥ := by
 
 lemma quant_to_quali_extended
     (x : ℕ → EReal) (ε : EReal) (ε_pos : ε > 0)
-    (hb : ∃ j, (∀ i ≥ j, x (i + 1) ≤ (x i) / 2) ∧ (x j < ⊤))
+    (hb : ∃ j, (∀ i ≥ j, x (i + 1) ≤ (x i) / 2) ∧ (x j ≠ ⊤))
     : ∃ k, ∀ i ≥ k, x i < ε := by
     have ⟨j, hbj, x_j_finite⟩ := hb
     clear hb
-    have x_all_finite : ∀ i ≥ j, x i < ⊤ := by
+    have all_x_ne_top : ∀ i ≥ j, x i ≠ ⊤ := by
       intro i i_ge_j
       induction i, i_ge_j using Nat.le_induction with
       | base => exact x_j_finite
       | succ n ih hn =>
         specialize hbj n ih
-        have : x n / 2 < ⊤ := EReal.half_lt_top (x n) hn
-        exact lt_of_le_of_lt hbj this
-    -- TODO: argh, we need to exclude first the case where some x i = ⊥
+        have half_ne_top : (x n) / 2 ≠ ⊤ := EReal.half_ne_top (x n) hn
+        have half_lt_top : (x n) / 2 < ⊤ :=
+          lt_of_le_of_ne (OrderTop.le_top ((x n) / 2)) half_ne_top
+        have : x (n + 1) < ⊤ := by
+          exact lt_of_le_of_lt hbj half_lt_top
+        exact ne_of_lt this
+    -- First we deal with the case where some x i is equal to ⊥
     have exists_eq_bot_ok : (∃ i ≥ j, x i = ⊥) → (∃ k, ∀ i ≥ k, x i < ε) := by
       intro exists_eq_bot
       have ⟨i, i_ge_j, x_i_eq_bot⟩ := exists_eq_bot; clear exists_eq_bot
@@ -1065,21 +1068,43 @@ lemma quant_to_quali_extended
         | succ n ih hn =>
           specialize hbj n (le_trans i_ge_j ih)
           rw [hn] at hbj
-          have : (⊥ : EReal) / 2 = ⊥ := by
+          rw [EReal.half_bot_eq_bot] at hbj
+          have := OrderBot.bot_le (x (n + 1))
+          apply le_antisymm
+          repeat assumption
+      use i
+      intro k k_ge_i
+      specialize this k k_ge_i
+      rw [this]
+      exact lt_trans EReal.bot_lt_zero ε_pos
+    cases em (∀ i ≥ j, ⊥ ≠ x i) with
+    | inr h => -- The case we have already singled out
+      push Not at h
+      apply exists_eq_bot_ok
+      grind
+    | inl all_bot_ne_x => -- the "normal case"
+      -- At this point, we know that:
+      -- all_x_ne_top : ∀ i ≥ j, x i ≠ ⊤
+      -- all_bot_ne_x : ∀ i ≥ j, ⊥ < x i
+      have ⟨y, hy⟩ : ∃ (y : ℕ → ℝ), ∀ i ≥ j, x i = ↑(y i) := by
+        sorry
 
-            sorry -- TODO: use EReal.half_bot_eq_bot, see above
-          rw [this] at hbj
-          sorry
+      have : ∃ k, ∀ i ≥ k, y i < ε := by
+        apply quant_to_quali y ε ε_pos -- shit, we need to tweak ε to have it in ℝ
+        -- or rather special case the case ε = ⊤
+        sorry
+      -- TODO: apply quant_to_quali to this sequence, get that
+      -- ∃ k, ∀ i ≥ k, y i < ε
 
+      -- quant_to_quali
+      -- (x : ℕ → ℝ) (ε : ℝ) (ε_pos : ε > 0)
+      -- (hb : ∃ j, ∀ i ≥ j, x (i + 1) ≤ (x i) / 2)
+      -- : ∃ k, ∀ i ≥ k, x i < ε := by
+
+
+      -- TODO: conclude by coercion (shit, fucking max-index todo)
       sorry
 
-    -- TODO: that holds only in the "good branch" where x i ≠ ⊥.
-    have shadow : ∃ (y : ℕ → ℝ), ∀ i ≥ j, x i = ↑(y i) := by
-      sorry
-    -- TODO: finiteness provides a real-valued sequence y such that ↑y = x
-    -- TODO: apply quant_to_quali to this sequence
-    -- TODO: conclude by coercion
-    sorry
 
 -- The quantitative version. TODO. We still have a mismatch here in that
 -- we have not proved that all the length are finite.
