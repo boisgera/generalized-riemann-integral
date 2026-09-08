@@ -1087,7 +1087,18 @@ lemma quant_to_quali_extended
       -- all_x_ne_top : ∀ i ≥ j, x i ≠ ⊤
       -- all_bot_ne_x : ∀ i ≥ j, ⊥ < x i
       have ⟨y, hy⟩ : ∃ (y : ℕ → ℝ), ∀ i ≥ j, x i = ↑(y i) := by
-        sorry
+        use (fun i => (x i).toReal)
+        intro i i_ge_j
+        simp only [EReal.toReal]
+        split
+        · rename_i _ heq
+          specialize all_bot_ne_x i i_ge_j
+          exact (all_bot_ne_x.symm heq).elim
+        · rename_i _ heq
+          specialize all_x_ne_top i i_ge_j
+          exact (all_x_ne_top heq).elim
+        · rename_i yi heq
+          exact heq
 
       have : ∃ k, ∀ i ≥ k, y i < ε := by
         apply quant_to_quali y ε ε_pos -- shit, we need to tweak ε to have it in ℝ
