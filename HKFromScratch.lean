@@ -756,6 +756,27 @@ noncomputable def Box.split (box : Box) : Box × Box :=
   let box2 : Box := ⟨box.midPoint, box.sup, box.midPointMem.2⟩
   (box1, box2)
 
+theorem finite_split (box : Box) (hinf : box.inf ≠ ⊥) (htop : box.sup ≠ ⊤) :
+    box.split.1.inf ≠ ⊥ ∧
+    box.split.1.sup ≠ ⊤ ∧
+    box.split.2.inf ≠ ⊥ ∧
+    box.split.2.sup ≠ ⊤ := by
+  refine ⟨?_, ?_, ?_, ?_⟩
+  · simp only [Box.split]
+    exact hinf
+  · simp only [Box.split]
+    have midPointMem := box.midPointMem
+    simp only [Membership.mem, Box.toInterval, Interval.mem] at midPointMem
+    have : box.midPoint < ⊤ :=
+      have midPoint_le_sup : box.midPoint ≤ box.sup := midPointMem.2
+      have sup_lt_top: box.sup < ⊤ :=
+        lt_of_le_of_ne (OrderTop.le_top box.sup) htop
+      lt_of_le_of_lt midPoint_le_sup sup_lt_top
+    exact ne_of_lt this
+  · sorry
+  · simp only [Box.split]
+    exact htop
+
 theorem half_length_of_split (box : Box) (hinf : box.inf ≠ ⊥) (htop : box.sup ≠ ⊤) :
     box.split.1.length = box.length / 2 ∧ box.split.2.length = box.length / 2 := by
   constructor
