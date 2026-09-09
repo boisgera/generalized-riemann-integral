@@ -773,7 +773,15 @@ theorem finite_split (box : Box) (hinf : box.inf ≠ ⊥) (htop : box.sup ≠ �
         lt_of_le_of_ne (OrderTop.le_top box.sup) htop
       lt_of_le_of_lt midPoint_le_sup sup_lt_top
     exact ne_of_lt this
-  · sorry
+  · simp only [Box.split]
+    have midPointMem := box.midPointMem
+    simp only [Membership.mem, Box.toInterval, Interval.mem] at midPointMem
+    have : ⊥ < box.midPoint :=
+      have inf_le_midPoint : box.inf ≤ box.midPoint := midPointMem.1
+      have bot_lt_inf : ⊥ < box.inf :=
+        lt_of_le_of_ne (OrderBot.bot_le box.inf) (Ne.symm hinf)
+      lt_of_lt_of_le bot_lt_inf inf_le_midPoint
+    exact ne_of_gt this
   · simp only [Box.split]
     exact htop
 
