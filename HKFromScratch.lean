@@ -1101,16 +1101,28 @@ lemma quant_to_quali_extended
           exact heq
 
       have : ∃ k, ∀ i ≥ k, y i < ε := by
-        apply quant_to_quali y ε ε_pos -- shit, we need to tweak ε to have it in ℝ
-        -- or rather special case the case ε = ⊤
-        sorry
-      -- TODO: apply quant_to_quali to this sequence, get that
-      -- ∃ k, ∀ i ≥ k, y i < ε
+        match ε with
+        | ⊥ => contradiction
+        | ⊤ =>
+          use 0
+          intro i _
+          apply lt_of_le_of_ne
+          apply OrderTop.le_top
+          intro eq
+          nomatch eq
+        | (ε' : ℝ) =>
+          have ε'_pos : ε' > 0 := by
+            apply EReal.coe_lt_coe_iff.mp
+            exact ε_pos
+          simp only [EReal.coe_lt_coe_iff]
+          apply quant_to_quali y ε' ε'_pos
+          use j
+          intro i i_ge_j
+          specialize hy i i_ge_j
+          specialize hbj i i_ge_j
+          simp [hy] at hbj
+          sorry
 
-      -- quant_to_quali
-      -- (x : ℕ → ℝ) (ε : ℝ) (ε_pos : ε > 0)
-      -- (hb : ∃ j, ∀ i ≥ j, x (i + 1) ≤ (x i) / 2)
-      -- : ∃ k, ∀ i ≥ k, x i < ε := by
 
 
       -- TODO: conclude by coercion (shit, fucking max-index todo)
