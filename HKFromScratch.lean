@@ -756,6 +756,27 @@ noncomputable def Box.split (box : Box) : Box × Box :=
   let box2 : Box := ⟨box.midPoint, box.sup, box.midPointMem.2⟩
   (box1, box2)
 
+theorem half_length_of_split (box : Box) (hinf : box.inf ≠ ⊥) (htop : box.sup ≠ ⊤) :
+    box.split.1.length = box.length / 2 ∧ box.split.2.length = box.length / 2 := by
+  constructor
+  · simp only [Box.length, Interval.length]
+    split
+    any_goals contradiction
+    rename_i I inf sup inf_le_sup heq
+    simp only [Box.toInterval] at heq ⊢
+    simp only [Box.split, Box.midPoint] at heq
+    simp only [Interval.icc.injEq] at heq
+    have ⟨box_inf_eq_inf, midPoint_eq_sup⟩ := heq
+    rw [<- box_inf_eq_inf, <- midPoint_eq_sup]
+    split
+    any_goals contradiction
+    · sorry
+    · sorry
+    · sorry
+    · sorry
+  · sorry
+
+
 -- TODO: show that if we have a sequence of boxes such that the next is one
 -- of the split of the current, we end up with a point where the sequence
 -- "aggregates" inside any of the neighbourhoods.
@@ -849,26 +870,28 @@ lemma nested_boxes_acc (boxes : ℕ → Box)
       rw [Box.toInterval, Interval.toSet]
       apply isClosed_Icc
 
-/-!
-TODO:
-  - Make the assumptions in nested_box theorem
-  - Consider the -- nonempty -- intersection of the boxes.
-  - If it contains -inf or +inf at each stage, special case (TODO).
-  - Otherwise we can pick a x in the intersection.
-    after the stage where neither -inf not +inf is in the intersection,
-    at each stage the length of the interval is divided by 2.
-    Pick a neighbourhood of x, extract a sub interval, push the iteration
-    and show that we end up in it.
-  - The infinity special case is quite similar.
-
--/
-
-/-!
-TODO: first lemma, assume that at some stage (boxes i) has finite bounds.
-Show that the length is / 2 at each stage and that is converges "inside"
-any Icc (neighb of...)
--/
-
+lemma nested_boxes_finite_aux (boxes : ℕ → Box)
+    (hanti : ∀ n,
+      boxes (n + 1) = (boxes n).split.1 ∨
+      boxes (n + 1) = (boxes n).split.2)
+    (j : ℕ) (hfin : (boxes j).inf ≠ ⊥ ∧ (boxes j).sup ≠ ⊤) :
+    ∀ i ≥ j,
+      (
+          (boxes j).inf ≠ ⊥
+        ∧ (boxes j).sup ≠ ⊤
+        ∧ (boxes (i + 1)).length ≤ (boxes i).length / 2
+      ) := by
+  intro i i_ge_j
+  induction i, i_ge_j using Nat.le_induction with
+  | base =>
+    constructor
+    · exact hfin.1
+    · constructor
+      · exact hfin.2
+      · specialize hanti j
+        sorry
+  | succ k k_le_j ih =>
+    sorry
 
 
 -- The quantitative/explicit version
@@ -876,11 +899,13 @@ lemma nested_boxes_finite (boxes : ℕ → Box)
     (hanti : ∀ n,
       boxes (n + 1) = (boxes n).split.1 ∨
       boxes (n + 1) = (boxes n).split.2)
-    (i : ℕ)
-    (hfin : (boxes i).inf ≠ ⊥ ∧ (boxes i).sup ≠ ⊤) :
-    ∀ j ≥ i,
-      (boxes j).length ≤ (boxes i).length / 2 ^ (j - i)
-  := by sorry
+    (j : ℕ) (hfin : (boxes j).inf ≠ ⊥ ∧ (boxes j).sup ≠ ⊤) :
+    ∀ i ≥ j,
+      (boxes (i + 1)).length ≤ (boxes i).length / 2
+  := by
+    intro i i_ge_j
+    have ⟨h1, h2, h3⟩ := nested_boxes_finite_aux boxes hanti j hfin i i_ge_j
+    exact h3
 
 #check pow_unbounded_of_one_lt
 -- pow_unbounded_of_one_lt.{u_3} {R : Type u_3} [Semiring R] [PartialOrder R] [IsStrictOrderedRing R] [Archimedean R]
@@ -1078,8 +1103,8 @@ lemma quant_to_quali_extended
       rw [this]
       exact lt_trans EReal.bot_lt_zero ε_pos
     cases em (∀ i ≥ j, ⊥ ≠ x i) with
-    | inr h => -- The case we have already singled out
-      push Not at h
+    | inr not_eventually_ne_bot => -- The case we have already singled out
+      push Not at not_eventually_ne_bot
       apply exists_eq_bot_ok
       grind
     | inl all_bot_ne_x => -- the "normal case"
@@ -1099,17 +1124,16 @@ lemma quant_to_quali_extended
           exact (all_x_ne_top heq).elim
         · rename_i yi heq
           exact heq
-
-      have : ∃ k, ∀ i ≥ k, y i < ε := by
+      have almost_there : ∃ k, ∀ i ≥ k, y i < ε := by
         match ε with
         | ⊥ => contradiction
         | ⊤ =>
           use 0
           intro i _
           apply lt_of_le_of_ne
-          apply OrderTop.le_top
-          intro eq
-          nomatch eq
+          · apply OrderTop.le_top
+          · intro eq
+            nomatch eq
         | (ε' : ℝ) =>
           have ε'_pos : ε' > 0 := by
             apply EReal.coe_lt_coe_iff.mp
@@ -1118,35 +1142,46 @@ lemma quant_to_quali_extended
           apply quant_to_quali y ε' ε'_pos
           use j
           intro i i_ge_j
-          specialize hy i i_ge_j
           specialize hbj i i_ge_j
-          simp [hy] at hbj
-          sorry
-
-
-
-      -- TODO: conclude by coercion (shit, fucking max-index todo)
-      sorry
+          simp only [hy i i_ge_j] at hbj
+          simp only [hy (i + 1) (show i + 1 ≥ j from by linarith)] at hbj
+          apply EReal.coe_le_coe_iff.mp
+          simp only [EReal.coe_div]
+          exact hbj
+      have ⟨k, hk⟩ := almost_there
+      let k' := max k j
+      use k'
+      intro i i_ge_k'
+      specialize hk i (show i ≥ k from by grind)
+      specialize hy i (show i ≥ j from by grind)
+      rw [hy]
+      exact hk
 
 
 -- The quantitative version. TODO. We still have a mismatch here in that
 -- we have not proved that all the length are finite.
-lemma nested_boxes_finite_quanti (boxes : ℕ → Box)
+-- lemma nested_boxes_finite_quanti (boxes : ℕ → Box)
+--     (hanti : ∀ n,
+--       boxes (n + 1) = (boxes n).split.1 ∨
+--       boxes (n + 1) = (boxes n).split.2)
+--     (j : ℕ)
+--     (hfin : (boxes j).inf ≠ ⊥ ∧ (boxes j).sup ≠ ⊤) :
+--     (∀ i ≥ j, (boxes (i + 1)).length ≤ ((boxes i).length / 2)) :=
+--     by sorry
+
+
+#check quant_to_quali_extended
+-- HK.quant_to_quali_extended (x : ℕ → EReal) (ε : EReal) (ε_pos : ε > 0)
+--   (hb : ∃ j, (∀ i ≥ j, x (i + 1) ≤ x i / 2) ∧ x j ≠ ⊤) : ∃ k, ∀ i ≥ k, x i < ε
+-- TODO: use quant_to_quali_extended
+
+
+lemma nested_boxes_finite_quali (boxes : ℕ → Box)
     (hanti : ∀ n,
       boxes (n + 1) = (boxes n).split.1 ∨
       boxes (n + 1) = (boxes n).split.2)
     (j : ℕ)
     (hfin : (boxes j).inf ≠ ⊥ ∧ (boxes j).sup ≠ ⊤) :
-    (∀ i ≥ j, (boxes (i + 1)).length ≤ ((boxes i).length / 2)) :=
-    by sorry
-
--- The qualitative version. Wire what we know so far.
-lemma nested_boxes_finite' (boxes : ℕ → Box)
-    (hanti : ∀ n,
-      boxes (n + 1) = (boxes n).split.1 ∨
-      boxes (n + 1) = (boxes n).split.2)
-    (i : ℕ)
-    (hfin : (boxes i).inf ≠ ⊥ ∧ (boxes i).sup ≠ ⊤) :
     Filter.Tendsto (Box.length ∘ boxes) Filter.atTop (𝓝 0) := by
   -- Let's transform the goal into a classic ε-δ goal.
   rw [tendsto_order]
@@ -1159,11 +1194,26 @@ lemma nested_boxes_finite' (boxes : ℕ → Box)
       apply Interval.length_nonneg
     grind
   · intro ε ε_pos
-    have := nested_boxes_finite boxes hanti i hfin
-    -- TODO: show that the finite bounds holds for any j ≥ i
-    -- TODO: show that you can replace .length with .lengthReal in
-    -- this and the goal
-    sorry
+    -- Grrr this lemma won't do, I it them to work for any i ≥ j.
+    have length_div : ∀ i ≥ j, (boxes (i + 1)).length ≤ (boxes i).length / 2
+      := by
+      intro i i_ge_j
+      exact nested_boxes_finite boxes hanti j hfin i i_ge_j
+    have length_finite : (boxes j).length ≠ ⊤ := by
+      simp only [Box.length, Interval.length, Box.toInterval]
+      split
+      · rename_i inf_eq_sup
+        exact EReal.zero_ne_top
+      · have ⟨inf_ne_bot, sup_ne_top⟩ := hfin
+        intro h
+        have h' := (HK.EReal.sub_eq_top_iff (boxes j).sup (boxes j).inf).mp h
+        rcases h' with ⟨h1, h2⟩ | ⟨h1, h2⟩
+        · exact sup_ne_top h1
+        · exact inf_ne_bot h1
+    apply quant_to_quali_extended (ε_pos := ε_pos)
+    use j
+
+#check HK.EReal.sub_eq_top_iff
 
 lemma nested_boxes_acc_bot (boxes : ℕ → Box)
     (hanti : ∀ n,
