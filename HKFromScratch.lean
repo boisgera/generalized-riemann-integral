@@ -576,7 +576,7 @@ def NoGauge.{u} (γ : Gauge) (box : Box): Prop :=
     π.cover = ↑box → ¬ π.toTaggedBoxes ≼ γ
 
 /-!
-Three absurd lemmas, consequences of ¬ (box.inf > box.sup)
+Three absurd lemmas, all consequences of ¬ (box.inf > box.sup)
 -/
 
 theorem Box.ne_inf_eq_top_and_sup_eq_bot (box : Box)
@@ -629,7 +629,7 @@ noncomputable def Box.midPoint (box : Box) : EReal :=
   | (x : ℝ), ⊤ => x + 1
   | (x : ℝ), (y : ℝ) => (x + y) / 2
 
-lemma Box.bot_ne_midPoint (box : Box) : (box.sup ≠ ⊥) → (box.midPoint ≠ ⊥) := by
+lemma Box.midPoint_ne_bot (box : Box) : (box.sup ≠ ⊥) → (box.midPoint ≠ ⊥) := by
   simp only [Box.midPoint]
   intro box_sup_ne_bot
   split
@@ -637,17 +637,11 @@ lemma Box.bot_ne_midPoint (box : Box) : (box.sup ≠ ⊥) → (box.midPoint ≠ 
   · exact EReal.bot_ne_zero.symm
   · norm_cast ; intro h ; cases h
   · box_absurd
-  -- apply False.elim
-  -- apply box.ne_inf_eq_top_and_sup_eq_bot
-  -- repeat assumption
   · exact top_ne_bot
   · box_absurd
-    -- apply False.elim
-    -- apply box.ne_inf_eq_top_and_sup_real
-    -- repeat assumption
   · contradiction
   · norm_cast ; intro h ; cases h
-  next x y inf_eq_x sup_eq_y =>
+  next x y _ _ =>
     norm_cast
     intro h
     have : (2 : EReal) = (↑(2 : Real) : EReal) := by norm_cast
@@ -656,7 +650,24 @@ lemma Box.bot_ne_midPoint (box : Box) : (box.sup ≠ ⊥) → (box.midPoint ≠ 
     cases h
 
 lemma Box.midPoint_ne_top (box : Box) : (box.inf ≠ ⊤) → (box.midPoint ≠ ⊤) := by
-  sorry
+  simp only [Box.midPoint]
+  intro box_inf_ne_top
+  split
+  · exact bot_ne_top
+  · exact EReal.zero_ne_top
+  · norm_cast ; intro h ; cases h
+  · exact bot_ne_top
+  · contradiction
+  · exact bot_ne_top
+  · exact bot_ne_top
+  · norm_cast ; intro h ; cases h
+  next x y _ _ =>
+    norm_cast
+    intro h
+    have : (2 : EReal) = (↑(2 : Real) : EReal) := by norm_cast
+    rw [this] at h
+    rw [<- EReal.coe_div] at h
+    cases h
 
 theorem Box.midPointMem (box : Box) : box.midPoint ∈ box := by
   constructor
@@ -671,15 +682,12 @@ theorem Box.midPointMem (box : Box) : box.midPoint ∈ box := by
     · rename_i y hinf hsup
       rw [hinf]
       exact bot_le
-    · rename_i hinf hsup
-      nomatch box.absurd_1 hinf hsup
+    · box_absurd
     · rename_i hinf hsup
       rw [hinf]
       exact le_refl (a := ⊤)
-    · rename_i y hinf hsup
-      nomatch box.absurd_2 hinf ⟨y, hsup⟩
-    · rename_i x hinf hsup
-      nomatch box.absurd_3 ⟨x, hinf⟩ hsup
+    · box_absurd
+    · box_absurd
     · rename_i x hinf hsup
       rw [hinf]
       have x_le_succ_x : x ≤ x + 1 := by linarith
@@ -712,15 +720,12 @@ theorem Box.midPointMem (box : Box) : box.midPoint ∈ box := by
       simp only [this]
       have y_sub_one_le_y : y - 1 ≤ y := by linarith
       exact_mod_cast y_sub_one_le_y
-    · rename_i hinf hsup
-      nomatch box.absurd_1 hinf hsup
+    · box_absurd
     · rename_i hinf hsup
       rw [hsup]
       exact le_refl (a := ⊤)
-    · rename_i y hinf hsup
-      nomatch box.absurd_2 hinf ⟨y, hsup⟩
-    · rename_i x hinf hsup
-      nomatch box.absurd_3 ⟨x, hinf⟩ hsup
+    · box_absurd
+    · box_absurd
     · rename_i x hinf hsup
       rw [hsup]
       exact le_top
