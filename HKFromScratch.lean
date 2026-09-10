@@ -780,23 +780,10 @@ theorem half_length_of_split
     (box : Box) (hinf : box.inf ≠ ⊥) (htop : box.sup ≠ ⊤) :
     box.split.1.length = box.length / 2 ∧
     box.split.2.length = box.length / 2 := by
-  constructor
+  apply And.intro
   · simp only [Box.length, Interval.length]
-    split
-    any_goals contradiction
-    rename_i I inf sup inf_le_sup heq
-    simp only [Box.toInterval] at heq ⊢
-    simp only [Box.split, Box.midPoint] at heq
-    simp only [Interval.icc.injEq] at heq
-    have ⟨box_inf_eq_inf, midPoint_eq_sup⟩ := heq;
-    clear heq
-    rw [<- box_inf_eq_inf, <- midPoint_eq_sup]
-    split
-    any_goals contradiction
-    · sorry
-    · sorry
-    · sorry
-    · sorry
+    simp only [Box.split, Box.toInterval]
+    sorry
   · sorry
 
 
