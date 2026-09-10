@@ -575,41 +575,11 @@ def NoGauge.{u} (γ : Gauge) (box : Box): Prop :=
     ∀ (ι : Type u) (_ : Fintype ι) (π : TaggedDivision ι),
     π.cover = ↑box → ¬ π.toTaggedBoxes ≼ γ
 
-noncomputable def Box.midPoint__deprecated (box : Box) : EReal :=
-  match hinf : box.inf, hsup : box.sup with
-  | ⊥, ⊥ => ⊥
-  | ⊥, ⊤ => 0
-  | ⊥, some (some y) => y - 1
-  | ⊤, ⊥ =>
-    have inf_le_sup := box.inf_le_sup
-    have top_le_bot : (⊤ : EReal) ≤ (⊥ : EReal) := by
-      simp only [hinf, hsup] at inf_le_sup
-      exact inf_le_sup
-    have bot_lt_top : (⊥ : EReal) < (⊤ : EReal) := bot_lt_top
-    have false : False := by grind
-    nomatch false
-  | ⊤, ⊤ => ⊤
-  | ⊤, some (some y) =>
-    have inf_le_sup := box.inf_le_sup
-    have top_le_y : (⊤ : EReal) ≤ (↑y : EReal) := by
-      rw [hinf, hsup] at inf_le_sup
-      exact inf_le_sup
-    have y_le_top := le_top (a := (↑y : EReal))
-    have top_eq_y := LE.le.antisymm top_le_y y_le_top
-    nomatch top_eq_y
-  | some (some x), ⊥ =>
-    have inf_le_sup := box.inf_le_sup
-    have x_le_bot : (↑x : EReal) ≤ ⊥ := by
-      rw [hinf, hsup] at inf_le_sup
-      exact inf_le_sup
-    have x_eq_bot := LE.le.antisymm x_le_bot (bot_le (a := (↑x : EReal)))
-    nomatch x_eq_bot
-  | some (some x), ⊤ => x + 1
-  | some (some x), some (some y) => (x + y) / 2
+/-!
+Three absurd lemmas, consequences of ¬ (box.inf > box.sup)
+-/
 
--- This is a mess, I should factor out the three cases that can't exist
-
-theorem Box.absurd_1 (box : Box)
+theorem Box.ne_inf_eq_top_and_sup_eq_bot (box : Box)
     (hinf : box.inf = ⊤) (hsup : box.sup = ⊥) : False := by
   have inf_le_sup := box.inf_le_sup
   have top_le_bot : (⊤ : EReal) ≤ (⊥ : EReal) := by
@@ -618,59 +588,75 @@ theorem Box.absurd_1 (box : Box)
   have bot_lt_top : (⊥ : EReal) < (⊤ : EReal) := bot_lt_top
   exact (by grind)
 
-theorem Box.absurd_2 (box : Box)
-    (hinf : box.inf = ⊤) (hsup : ∃ y : ℝ, box.sup = ↑y) : False := by
+theorem Box.ne_inf_eq_top_and_sup_real (box : Box)
+    (hinf : box.inf = ⊤) {y : ℝ} (hsup : box.sup = ↑y) : False := by
   have inf_le_sup := box.inf_le_sup
-  have ⟨y, hsupy⟩ := hsup
   have top_le_y : (⊤ : EReal) ≤ (↑y : EReal) := by
-    rw [hinf, hsupy] at inf_le_sup
+    rw [hinf, hsup] at inf_le_sup
     exact inf_le_sup
   have y_le_top := le_top (a := (↑y : EReal))
   have top_eq_y := LE.le.antisymm top_le_y y_le_top
   nomatch top_eq_y
 
-theorem Box.absurd_3 (box : Box)
-    (hinf : ∃ x : ℝ, box.inf = ↑x) (hsup : box.sup = ⊥) : False := by
+theorem Box.ne_inf_real_and_sup_eq_bot (box : Box)
+    {x : ℝ} (hinf : box.inf = ↑x) (hsup : box.sup = ⊥) : False := by
   have inf_le_sup := box.inf_le_sup
-  have ⟨x, hinfx⟩ := hinf
   have x_le_bot : (↑x : EReal) ≤ ⊥ := by
-    rw [hinfx, hsup] at inf_le_sup
+    rw [hinf, hsup] at inf_le_sup
     exact inf_le_sup
   have x_eq_bot := LE.le.antisymm x_le_bot (bot_le (a := (↑x : EReal)))
   nomatch x_eq_bot
 
+macro "box_absurd" : tactic =>
+  `(tactic|
+      apply False.elim <;>
+      first
+      | (apply Box.ne_inf_eq_top_and_sup_eq_bot <;> assumption)
+      | (apply Box.ne_inf_eq_top_and_sup_real <;>
+           first | assumption | exact ⟨_, by assumption⟩)
+      | (apply Box.ne_inf_real_and_sup_eq_bot <;>
+           first | assumption | exact ⟨_, by assumption⟩))
+
 noncomputable def Box.midPoint (box : Box) : EReal :=
-  match hinf : box.inf, hsup : box.sup with
+  match box.inf, box.sup with
   | ⊥, ⊥ => ⊥
   | ⊥, ⊤ => 0
-  | ⊥, some (some y) => y - 1
-  | ⊤, ⊥ => nomatch box.absurd_1 hinf hsup
+  | ⊥, (y : ℝ) => y - 1
+  | ⊤, ⊥ => ⊥ -- junk, can't happen
   | ⊤, ⊤ => ⊤
-  | ⊤, some (some y) => nomatch box.absurd_2 hinf ⟨y, hsup⟩
-  | some (some x), ⊥ => nomatch box.absurd_3 ⟨x, hinf⟩ hsup
-  | some (some x), ⊤ => x + 1
-  | some (some x), some (some y) => (x + y) / 2
+  | ⊤, (_ : ℝ) => ⊥ -- junk, can't happen
+  | (_ : ℝ), ⊥ => ⊥ -- junk, can't happen
+  | (x : ℝ), ⊤ => x + 1
+  | (x : ℝ), (y : ℝ) => (x + y) / 2
 
-lemma Box.midPoint_gt_bot (box : Box) : (box.sup > ⊥) → box.midPoint > ⊥ := by
+lemma Box.bot_ne_midPoint (box : Box) : (box.sup ≠ ⊥) → (box.midPoint ≠ ⊥) := by
   simp only [Box.midPoint]
-  intro box_sup_gt_bot
+  intro box_sup_ne_bot
   split
-  next hinf hsup =>
-    rw [hsup] at box_sup_gt_bot
-    exact box_sup_gt_bot
-  next => exact EReal.bot_lt_zero
-  next y hinf hsup =>
-    apply EReal.bot_lt_coe
-  next hinf hsup =>
-    nomatch box.absurd_1 hinf hsup
-  next =>
-    exact bot_lt_top
-  next y hinf hsup =>
-    nomatch box.absurd_2 hinf ⟨y, hsup⟩
-  next x hinf hsup =>
-    nomatch box.absurd_3 ⟨x, hinf⟩ hsup
-  · apply EReal.bot_lt_coe
-  · apply EReal.bot_lt_coe
+  · contradiction
+  · exact EReal.bot_ne_zero.symm
+  · norm_cast ; intro h ; cases h
+  · box_absurd
+  -- apply False.elim
+  -- apply box.ne_inf_eq_top_and_sup_eq_bot
+  -- repeat assumption
+  · exact top_ne_bot
+  · box_absurd
+    -- apply False.elim
+    -- apply box.ne_inf_eq_top_and_sup_real
+    -- repeat assumption
+  · contradiction
+  · norm_cast ; intro h ; cases h
+  next x y inf_eq_x sup_eq_y =>
+    norm_cast
+    intro h
+    have : (2 : EReal) = (↑(2 : Real) : EReal) := by norm_cast
+    rw [this] at h
+    rw [<- EReal.coe_div] at h
+    cases h
+
+lemma Box.midPoint_ne_top (box : Box) : (box.inf ≠ ⊤) → (box.midPoint ≠ ⊤) := by
+  sorry
 
 theorem Box.midPointMem (box : Box) : box.midPoint ∈ box := by
   constructor
@@ -785,8 +771,10 @@ theorem finite_split (box : Box) (hinf : box.inf ≠ ⊥) (htop : box.sup ≠ �
   · simp only [Box.split]
     exact htop
 
-theorem half_length_of_split (box : Box) (hinf : box.inf ≠ ⊥) (htop : box.sup ≠ ⊤) :
-    box.split.1.length = box.length / 2 ∧ box.split.2.length = box.length / 2 := by
+theorem half_length_of_split
+    (box : Box) (hinf : box.inf ≠ ⊥) (htop : box.sup ≠ ⊤) :
+    box.split.1.length = box.length / 2 ∧
+    box.split.2.length = box.length / 2 := by
   constructor
   · simp only [Box.length, Interval.length]
     split
@@ -795,7 +783,8 @@ theorem half_length_of_split (box : Box) (hinf : box.inf ≠ ⊥) (htop : box.su
     simp only [Box.toInterval] at heq ⊢
     simp only [Box.split, Box.midPoint] at heq
     simp only [Interval.icc.injEq] at heq
-    have ⟨box_inf_eq_inf, midPoint_eq_sup⟩ := heq
+    have ⟨box_inf_eq_inf, midPoint_eq_sup⟩ := heq;
+    clear heq
     rw [<- box_inf_eq_inf, <- midPoint_eq_sup]
     split
     any_goals contradiction
