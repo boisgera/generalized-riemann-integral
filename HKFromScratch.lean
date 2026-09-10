@@ -160,16 +160,16 @@ Infimum and Supremum
 
 noncomputable def Interval.inf : Interval → EReal
   | .empty => ⊤
-  | .ioo inf _ _ => inf
-  | .ioc inf _ _ => inf
-  | .ico inf _ _ => inf
+  | .ioo inf _ _
+  | .ioc inf _ _
+  | .ico inf _ _
   | .icc inf _ _ => inf
 
 noncomputable def Interval.sup : Interval → EReal
   | .empty => ⊥
-  | .ioo _ sup _ => sup
-  | .ioc _ sup _ => sup
-  | .ico _ sup _ => sup
+  | .ioo _ sup _
+  | .ioc _ sup _
+  | .ico _ sup _
   | .icc _ sup _ => sup
 
 theorem Interval.inf_eq_sInf_coe (I : Interval) : I.inf = sInf ↑I := by
@@ -335,53 +335,21 @@ Length
 -/
 
 /-!
-Nota: do we need/want a length that returns values in ENNReal instead?
+Notes:
+- We need to special-case ∅.length since ∅.sup - ∅.inf = ⊥ - ⊤ = ⊥.
+- [⊥, ⊥].length and [⊤, ⊤].length are junk values
+  (that keep the definition as simple as possible)
 -/
-/-!
-Nota: the naive definition is borked for [⊥, ⊥] and [⊤, ⊤],
-since ⊥ - ⊥ = ⊥ and ⊤ - ⊤ = ⊥ ... instead of 0!
- -/
-
-/-!
-Nota: it's *maybe* stupid to try to "fix" the length for arguments that
-arguably are not used. Why spend some energy on what could be considered
-junk values instead of adding some restriction in the hypotheses when we
-need a property? Why not pick the simplest expression that exist (sub)
-and roll with it? (That's a fair question)
- -/
 
 noncomputable def Interval.length : Interval → EReal
   | .empty => 0
-  | .ioo inf sup _ | .ioc inf sup _ | .ico inf sup _  =>
-    sup - inf
-  | .icc inf sup _ =>
-    if inf = sup then 0 else sup - inf
-
-theorem Interval.length_nonneg (i : Interval) : i.length ≥ 0 := by
-  cases i with
-  | empty =>
-    rw [Interval.length]
-  | ioo inf sup inf_lt_sup
-  | ioc inf sup inf_lt_sup
-  | ico inf sup inf_lt_sup =>
-    rw [Interval.length]
-    have inf_le_sup := le_of_lt inf_lt_sup
-    have sup_ne_bot : (sup ≠ ⊥) := by grind
-    have inf_ne_top : (inf ≠ ⊤) := by grind
-    apply (EReal.sub_nonneg (Or.inr inf_ne_top) (Or.inl sup_ne_bot)).mpr
-    exact inf_le_sup
-  | icc inf sup inf_le_sup =>
-    rw [Interval.length]
-    split
-    · apply le_refl
-    · rename_i inf_ne_sup -- and from there we are back in the common case.
-      have sup_ne_bot : (sup ≠ ⊥) := by grind
-      have inf_ne_top : (inf ≠ ⊤) := by grind
-      apply (EReal.sub_nonneg (Or.inr inf_ne_top) (Or.inl sup_ne_bot)).mpr
-      exact inf_le_sup
+  | .ioo inf sup _
+  | .ioc inf sup _
+  | .ico inf sup _
+  | .icc inf sup _ => sup - inf
 
 theorem EReal.sub_eq_top_iff (x y : EReal) :
-    (x - y = ⊤) ↔ (x = ⊤ ∧ y ≠ ⊤) ∨ (y = ⊥ ∧ x ≠ ⊥) := by
+    (x - y = ⊤) ↔ (x = ⊤ ∧ y ≠ ⊤) ∨ (x ≠ ⊥ ∧ y = ⊥) := by
   constructor
   · intro sub_eq_top
     cases x <;> cases y <;>
@@ -390,50 +358,53 @@ theorem EReal.sub_eq_top_iff (x y : EReal) :
       simp only [EReal.coe_ne_top, EReal.coe_ne_bot, bot_ne_top, ne_eq, and_true, or_true,
         true_or, not_false_eq_true]
   · intro h
-    rcases h with ⟨x_eq_top, y_ne_top⟩ | ⟨y_eq_bot, x_ne_bot⟩
+    rcases h with ⟨x_eq_top, y_ne_top⟩ | ⟨x_ne_bot, y_eq_bot⟩
     · rw [x_eq_top]
       exact EReal.top_sub y_ne_top
     · rw [y_eq_bot]
       exact EReal.sub_bot x_ne_bot
 
+theorem EReal.sub_ne_top_iff (x y : EReal) :
+    (x - y ≠ ⊤) ↔ (x ≠ ⊤ ∨ y = ⊤) ∧ (x = ⊥ ∨ y ≠ ⊥) := by
+  have := (EReal.sub_eq_top_iff x y).not
+  push Not at this
+  simp only [show (x = ⊤ → y = ⊤) = (x ≠ ⊤ ∨ y = ⊤) from by grind] at this
+  simp only [show (x ≠ ⊥ → y ≠ ⊥) = (x = ⊥ ∨ y ≠ ⊥) from by grind] at this
+  exact this
+
+#check EReal.sub_nonneg
+-- EReal.sub_nonneg {x y : EReal} (h_top : x ≠ ⊤ ∨ y ≠ ⊤) (h_bot : x ≠ ⊥ ∨ y ≠ ⊥) :
+-- 0 ≤ x - y ↔ y ≤ x
+
+theorem Interval.length_nonneg (i : Interval)
+    (hnbb : ¬(i.inf = ⊥ ∧ i.sup = ⊥))
+    (hntt : ¬(i.inf = ⊤ ∧ i.sup = ⊤))
+    : (i.length ≥ 0) := by
+  cases i
+  all_goals
+    simp only [Interval.inf, Interval.sup, Interval.length] at *
+    first
+    | rfl
+    | apply (EReal.sub_nonneg (by grind) (by grind)).mpr
+      first
+      | assumption
+      | apply le_of_lt ; assumption
+
 theorem Interval.length_finite (i : Interval)
     (inf_ne_bot : i.inf ≠ ⊥) (sup_ne_top : i.sup ≠ ⊤)
-    : i.length < ⊤ := by
+    : i.length ≠ ⊤ := by
   cases h : i with
   | empty =>
     rw [Interval.length]
-    apply EReal.zero_lt_top
+    apply EReal.zero_ne_top
   | ioo inf sup inf_lt_sup
   | ioc inf sup inf_lt_sup
-  | ico inf sup inf_lt_sup =>
-    rw [Interval.length]
-    have sup_sub_inf_ne_top : sup - inf ≠ ⊤ := by
-      by_contra
-      have := (EReal.sub_eq_top_iff sup inf).mp this
-      rcases this with ⟨sup_eq_top, _⟩ | ⟨inf_eq_bot, _⟩
-      · have sup_eq_interval_sup: sup = i.sup := by rw [h, Interval.sup]
-        rw [sup_eq_interval_sup] at sup_eq_top
-        exact absurd sup_eq_top sup_ne_top
-      · have inf_eq_interval_inf: inf = i.inf := by rw [h, Interval.inf]
-        rw [inf_eq_interval_inf] at inf_eq_bot
-        exact absurd inf_eq_bot inf_ne_bot
-    exact lt_top_iff_ne_top.mpr sup_sub_inf_ne_top
+  | ico inf sup inf_lt_sup
   | icc inf sup inf_le_sup =>
     rw [Interval.length]
-    split
-    · exact EReal.zero_lt_top
-    · rename_i inf_ne_sup
-      have sup_sub_inf_ne_top : sup - inf ≠ ⊤:= by
-        by_contra
-        rw [EReal.sub_eq_top_iff] at this
-        rcases this with ⟨sup_eq_top, if_ne_top⟩ | ⟨inf_eq_bot, sup_ne_bot⟩
-        · have sup_eq_interval_sup: sup = i.sup := by rw [h, Interval.sup]
-          rw [sup_eq_interval_sup] at sup_eq_top
-          exact absurd sup_eq_top sup_ne_top
-        · have inf_eq_interval_inf: inf = i.inf := by rw [h, Interval.inf]
-          rw [inf_eq_interval_inf] at inf_eq_bot
-          exact absurd inf_eq_bot inf_ne_bot
-      exact lt_top_iff_ne_top.mpr sup_sub_inf_ne_top
+    apply (EReal.sub_ne_top_iff sup inf).mpr
+    simp only [h, Interval.inf, Interval.sup] at *
+    grind
 
 /-!
 The function that maps infinite lengths to zero already exist:
