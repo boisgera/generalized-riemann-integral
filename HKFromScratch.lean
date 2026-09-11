@@ -172,6 +172,12 @@ noncomputable def Interval.sup : Interval → EReal
   | .ico _ sup _
   | .icc _ sup _ => sup
 
+/-!
+Note that `sInf`, attached to the `InfSet` type class has not semantics,
+only a signature : to each subset of the type, you can associate a unique
+value that we call the (set) infimum.
+-/
+
 #check sInf
 -- InfSet.sInf.{u_1} {α : Type u_1} [self : InfSet α] : Set α → α
 
@@ -183,15 +189,55 @@ noncomputable def Interval.sup : Interval → EReal
 -- constructor:
 --   InfSet.mk.{u_1} {α : Type u_1} (sInf : Set α → α) : InfSet α
 
-#synth InfSet EReal
--- instInfSetEReal
+/-!
+The semantics comes if you assume an additional structure of complete
+meet-semilattice, which is associated to the `CompleteSemilatticeInf`
+type class in Lean. This structure is quite large, but actually pretty
+simple: it extends `InfSet`, `PartialOrder` and additionally provides
 
-#print CompleteLattice
--- HUGE stuff. includes stuff such as
---  CompleteSemilatticeInf.isGLB_sInf : ∀ (s : Set α), IsGLB s (sInf s)
+```
+CompleteSemilatticeInf.isGLB_sInf : ∀ (s : Set α), IsGLB s (sInf s)
+```
 
-#synth CompleteLattice EReal
--- CompleteLinearOrder.toCompletelyDistribLattice.toCompleteLattice
+where `IsGLB`, for "is a greatest lower bound" can be defined with
+the building blocks `lowerBounds` and `upperBounds` (which only require
+an instance of `LE α`).
+
+We actually have in a something slightly stronger result in this structure
+(since so far it's not obvious that a greatest lower bound is unique):
+
+```
+isGLB_iff_sInf_eq.{u} {α : Type u} [CompleteSemilatticeInf α] {s : Set α} {a : α} :
+IsGLB s a ↔ sInf s = a
+```
+-/
+
+#print CompleteSemilatticeInf
+-- class CompleteSemilatticeInf.{u_8} (α : Type u_8) : Type u_8
+-- number of parameters: 1
+-- parents:
+--   CompleteSemilatticeInf.toPartialOrder : PartialOrder α
+--   CompleteSemilatticeInf.toInfSet : InfSet α
+-- fields:
+--   LE.le : α → α → Prop
+--   LT.lt : α → α → Prop :=
+--     fun a b ↦ a ≤ b ∧ ¬b ≤ a
+--   Preorder.le_refl : ∀ (a : α), a ≤ a
+--   Preorder.le_trans : ∀ (a b c : α), a ≤ b → b ≤ c → a ≤ c
+--   Preorder.lt_iff_le_not_ge : ∀ (a b : α), a < b ↔ a ≤ b ∧ ¬b ≤ a := by
+--     intros; rfl
+--   PartialOrder.le_antisymm : ∀ (a b : α), a ≤ b → b ≤ a → a = b
+--   InfSet.sInf : Set α → α
+--   CompleteSemilatticeInf.isGLB_sInf : ∀ (s : Set α), IsGLB s (sInf s)
+-- constructor:
+--   CompleteSemilatticeInf.mk.{u_8} {α : Type u_8} [toPartialOrder : PartialOrder α] [toInfSet : InfSet α]
+--     (isGLB_sInf : ∀ (s : Set α), IsGLB s (sInf s)) : CompleteSemilatticeInf α
+-- field notation resolution order:
+--   CompleteSemilatticeInf, PartialOrder, InfSet, Preorder, LE, LT
+
+#check isGLB_iff_sInf_eq
+-- isGLB_iff_sInf_eq.{u_1} {α : Type u_1} [CompleteSemilatticeInf α] {s : Set α} {a : α} :
+-- IsGLB s a ↔ sInf s = a
 
 #print IsGLB
 -- def IsGLB.{u_1} : {α : Type u_1} → [LE α] → Set α → α → Prop :=
@@ -201,26 +247,68 @@ noncomputable def Interval.sup : Interval → EReal
 -- def IsGreatest.{u_1} : {α : Type u_1} → [LE α] → Set α → α → Prop :=
 -- fun {α} [LE α] s a ↦ a ∈ s ∧ a ∈ upperBounds s
 
+#print lowerBounds
+-- def lowerBounds.{u_1} : {α : Type u_1} → [LE α] → Set α → Set α :=
+-- fun {α} [LE α] s ↦ {x | ∀ ⦃a : α⦄, a ∈ s → x ≤ a}
+
 #print upperBounds
 -- def upperBounds.{u_1} : {α : Type u_1} → [LE α] → Set α → Set α :=
 -- fun {α} [LE α] s ↦ {x | ∀ ⦃a : α⦄, a ∈ s → a ≤ x}
 
-#check isGLB_iff_sInf_eq
--- isGLB_iff_sInf_eq.{u_1} {α : Type u_1} [CompleteSemilatticeInf α] {s : Set α} {a : α} :
--- IsGLB s a ↔ sInf s = a
+/-!
+All of this works in `EReal` since it is a complete linear order
+(and hence a complete lattice).
+-/
 
-theorem Interval.inf_eq_sInf_coe (I : Interval) : I.inf = sInf ↑I := by
-  -- First step : reduce the goal of being the inf to being the GLB
+#synth CompleteLinearOrder EReal
+-- instCompleteLinearOrderEReal
+
+#synth CompleteLattice EReal
+-- CompleteLinearOrder.toCompletelyDistribLattice.toCompleteLattice
+
+#check Interval_mem_iff_Set_mem
+-- HK.Interval_mem_iff_Set_mem (I : Interval) (x : EReal) : x ∈ I ↔ x ∈ I.toSet
+
+theorem Interval.inf_eq_sInf_coe (i : Interval) : i.inf = sInf ↑i := by
+  -- First, reduce the goal of being the inf to being the GLB, then
+  -- reduce further to expressions using raw `≤`.
   apply Eq.symm
-  simp only [<- isGLB_iff_sInf_eq (α := EReal)]
-  -- ⊢ IsGLB I.toSet I.inf
-  simp only [IsGLB, IsGreatest, lowerBounds]
-  -- ⊢ I.inf ∈ {x | ∀ ⦃a : EReal⦄, a ∈ I.toSet → x ≤ a} ∧
-  -- I.inf ∈ upperBounds {x | ∀ ⦃a : EReal⦄, a ∈ I.toSet → x ≤ a}
+  rw [<- isGLB_iff_sInf_eq]
+  simp only [IsGLB, IsGreatest, lowerBounds, upperBounds]
+  simp only [Set.mem_setOf]
+  conv =>
+    left; ext a; rw [<- Interval_mem_iff_Set_mem i a]
+  conv =>
+    right; ext a; left; intro b; rw [<- Interval_mem_iff_Set_mem i b]
+  simp only [Membership.mem]
   constructor
-  · sorry
-  · sorry
-
+  · intro a a_in_i
+    rw [Interval.mem.eq_def] at a_in_i
+    simp only [Interval.inf]
+    cases i <;> simp only at *
+    all_goals grind
+  · intro a lowerBound
+    simp only [Interval.mem, Interval.inf.eq_def] at *
+    cases i <;> simp only at *
+    any_goals grind
+    · simp only [le_top]
+    next inf sup inf_lt_sup =>
+      apply le_of_forall_gt_imp_ge_of_dense
+      intro b inf_lt_b
+      cases em (b < sup) with
+      | inl b_lt_sup =>
+        apply lowerBound
+        constructor <;> assumption
+      | inr not_b_lt_sup =>
+        push Not at not_b_lt_sup
+        let ⟨c, hc⟩ := exists_between inf_lt_sup
+        specialize lowerBound (b := c) hc
+        have c_lt_sup : c < sup := hc.2
+        have a_le_sup := le_of_lt <| lt_of_le_of_lt lowerBound c_lt_sup
+        apply le_trans <;> assumption
+    next inf sup inf_lt_sup =>
+      -- TODO
+      sorry
 
 theorem Interval.sup_eq_sSup_coe (I : Interval) : I.sup = sSup ↑I := by
   sorry
