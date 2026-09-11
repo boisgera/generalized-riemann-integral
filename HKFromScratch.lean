@@ -307,11 +307,69 @@ theorem Interval.inf_eq_sInf_coe (i : Interval) : i.inf = sInf ↑i := by
         have a_le_sup := le_of_lt <| lt_of_le_of_lt lowerBound c_lt_sup
         apply le_trans <;> assumption
     next inf sup inf_lt_sup =>
-      -- TODO
-      sorry
+      apply le_of_forall_gt_imp_ge_of_dense
+      intro b inf_lt_b
+      cases em (b < sup) with
+      | inl b_lt_sup =>
+        apply lowerBound
+        exact ⟨inf_lt_b, le_of_lt b_lt_sup⟩
+      | inr not_b_lt_sup =>
+        push Not at not_b_lt_sup
+        let ⟨c, hc⟩ := exists_between inf_lt_sup
+        specialize lowerBound (b := c) ⟨hc.1, le_of_lt hc.2⟩
+        have c_lt_sup : c < sup := hc.2
+        have a_le_sup := le_of_lt <| lt_of_le_of_lt lowerBound c_lt_sup
+        apply le_trans <;> assumption
 
 theorem Interval.sup_eq_sSup_coe (I : Interval) : I.sup = sSup ↑I := by
-  sorry
+  apply Eq.symm
+  rw [<- isLUB_iff_sSup_eq]
+  simp only [IsLUB, IsLeast, lowerBounds, upperBounds]
+  simp only [Set.mem_setOf]
+  conv =>
+    left; ext a; rw [<- Interval_mem_iff_Set_mem I a]
+  conv =>
+    right; ext a; left; intro b; rw [<- Interval_mem_iff_Set_mem I b]
+  simp only [Membership.mem]
+  constructor
+  · intro a a_in_I
+    rw [Interval.mem.eq_def] at a_in_I
+    simp only [Interval.sup]
+    cases I <;> simp only at *
+    all_goals grind
+  · intro a upperBound
+    simp only [Interval.mem, Interval.sup.eq_def] at *
+    cases I <;> simp only at *
+    any_goals grind
+    · simp only [bot_le]
+    next inf sup inf_lt_sup =>
+      apply le_of_forall_lt_imp_le_of_dense
+      intro b b_lt_sup
+      cases em (inf < b) with
+      | inl inf_lt_b =>
+        apply upperBound
+        constructor <;> assumption
+      | inr not_inf_lt_b =>
+        push Not at not_inf_lt_b
+        let ⟨c, hc⟩ := exists_between inf_lt_sup
+        specialize upperBound (b := c) hc
+        have inf_lt_c : inf < c := hc.1
+        have b_le_c := le_of_lt <| lt_of_le_of_lt not_inf_lt_b inf_lt_c
+        apply le_trans <;> assumption
+    next inf sup inf_lt_sup =>
+      apply le_of_forall_lt_imp_le_of_dense
+      intro b b_lt_sup
+      cases em (inf ≤ b) with
+      | inl inf_le_b =>
+        apply upperBound
+        exact ⟨inf_le_b, b_lt_sup⟩
+      | inr not_inf_le_b =>
+        push Not at not_inf_le_b
+        let ⟨c, hc⟩ := exists_between inf_lt_sup
+        specialize upperBound (b := c) ⟨le_of_lt hc.1, hc.2⟩
+        have inf_lt_c : inf < c := hc.1
+        have b_le_c := le_of_lt <| lt_trans not_inf_le_b inf_lt_c
+        apply le_trans <;> assumption
 
 
 
