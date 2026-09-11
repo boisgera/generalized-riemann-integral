@@ -172,7 +172,46 @@ noncomputable def Interval.sup : Interval → EReal
   | .ico _ sup _
   | .icc _ sup _ => sup
 
+#check sInf
+-- InfSet.sInf.{u_1} {α : Type u_1} [self : InfSet α] : Set α → α
+
+#print InfSet -- computation/data only, not related to order
+-- class InfSet.{u_1} (α : Type u_1) : Type u_1
+-- number of parameters: 1
+-- fields:
+--   InfSet.sInf : Set α → α
+-- constructor:
+--   InfSet.mk.{u_1} {α : Type u_1} (sInf : Set α → α) : InfSet α
+
+#synth InfSet EReal
+-- instInfSetEReal
+
+#print CompleteLattice
+-- HUGE stuff. includes stuff such as
+--  CompleteSemilatticeInf.isGLB_sInf : ∀ (s : Set α), IsGLB s (sInf s)
+
+#synth CompleteLattice EReal
+-- CompleteLinearOrder.toCompletelyDistribLattice.toCompleteLattice
+
+#print IsGLB
+-- def IsGLB.{u_1} : {α : Type u_1} → [LE α] → Set α → α → Prop :=
+-- fun {α} [LE α] s ↦ IsGreatest (lowerBounds s)
+
+#print IsGreatest
+-- def IsGreatest.{u_1} : {α : Type u_1} → [LE α] → Set α → α → Prop :=
+-- fun {α} [LE α] s a ↦ a ∈ s ∧ a ∈ upperBounds s
+
+#print upperBounds
+-- def upperBounds.{u_1} : {α : Type u_1} → [LE α] → Set α → Set α :=
+-- fun {α} [LE α] s ↦ {x | ∀ ⦃a : α⦄, a ∈ s → a ≤ x}
+
+
 theorem Interval.inf_eq_sInf_coe (I : Interval) : I.inf = sInf ↑I := by
+  -- EReal is a complete lattice, use the properties of sInf in this
+  -- structure to reduce the check to:
+  -- - I.inf is a lower bound of ↑I,
+  -- - I.inf is a (the) greatest of these lower bounds.
+  -- Then prove those two properties.
   sorry
 
 theorem Interval.sup_eq_sSup_coe (I : Interval) : I.sup = sSup ↑I := by
