@@ -205,14 +205,22 @@ noncomputable def Interval.sup : Interval → EReal
 -- def upperBounds.{u_1} : {α : Type u_1} → [LE α] → Set α → Set α :=
 -- fun {α} [LE α] s ↦ {x | ∀ ⦃a : α⦄, a ∈ s → a ≤ x}
 
+#check isGLB_iff_sInf_eq
+-- isGLB_iff_sInf_eq.{u_1} {α : Type u_1} [CompleteSemilatticeInf α] {s : Set α} {a : α} :
+-- IsGLB s a ↔ sInf s = a
 
 theorem Interval.inf_eq_sInf_coe (I : Interval) : I.inf = sInf ↑I := by
-  -- EReal is a complete lattice, use the properties of sInf in this
-  -- structure to reduce the check to:
-  -- - I.inf is a lower bound of ↑I,
-  -- - I.inf is a (the) greatest of these lower bounds.
-  -- Then prove those two properties.
-  sorry
+  -- First step : reduce the goal of being the inf to being the GLB
+  apply Eq.symm
+  simp only [<- isGLB_iff_sInf_eq (α := EReal)]
+  -- ⊢ IsGLB I.toSet I.inf
+  simp only [IsGLB, IsGreatest, lowerBounds]
+  -- ⊢ I.inf ∈ {x | ∀ ⦃a : EReal⦄, a ∈ I.toSet → x ≤ a} ∧
+  -- I.inf ∈ upperBounds {x | ∀ ⦃a : EReal⦄, a ∈ I.toSet → x ≤ a}
+  constructor
+  · sorry
+  · sorry
+
 
 theorem Interval.sup_eq_sSup_coe (I : Interval) : I.sup = sSup ↑I := by
   sorry
