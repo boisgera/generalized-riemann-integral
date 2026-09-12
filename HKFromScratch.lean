@@ -230,7 +230,8 @@ IsGLB s a ↔ sInf s = a
 --   InfSet.sInf : Set α → α
 --   CompleteSemilatticeInf.isGLB_sInf : ∀ (s : Set α), IsGLB s (sInf s)
 -- constructor:
---   CompleteSemilatticeInf.mk.{u_8} {α : Type u_8} [toPartialOrder : PartialOrder α] [toInfSet : InfSet α]
+--   CompleteSemilatticeInf.mk.{u_8} {α : Type u_8}
+--     [toPartialOrder : PartialOrder α] [toInfSet : InfSet α]
 --     (isGLB_sInf : ∀ (s : Set α), IsGLB s (sInf s)) : CompleteSemilatticeInf α
 -- field notation resolution order:
 --   CompleteSemilatticeInf, PartialOrder, InfSet, Preorder, LE, LT
@@ -445,7 +446,13 @@ theorem Interval.empty_iff_empty_coe (I : Interval) :
 Connectedness
 --------------------------------------------------------------------------------
 
-Being an interval in EReal is exactly being order-connected:
+Let's prove that in the extended real numbers, the intervals are exactly the
+sets that are order-connected.
+-/
+
+/-!
+By definition, a set is *order-connected* iff it contains every closed interval
+whose endpoints it contains.
 -/
 
 #print Set.OrdConnected
@@ -459,30 +466,78 @@ Being an interval in EReal is exactly being order-connected:
 -- (h : s.OrdConnected) ⦃x : α⦄ :
 -- x ∈ s → ∀ ⦃y : α⦄, y ∈ s → Set.Icc x y ⊆ s
 
+
+/-!
+There are theorems in Mathib that prove that each type of interval is
+order-connected; for example, we have:
+-/
+
 #check Set.ordConnected_Ioo
 -- Set.ordConnected_Ioo.{u_1} {α : Type u_1} [Preorder α] {a b : α} :
 -- (Set.Ioo a b).OrdConnected
 
+lemma sInf_le_sSup {s : Set EReal} (s_nonempty : s.Nonempty) : sInf s ≤ sSup s := by
+    have ⟨x, x_in_s⟩ := s_nonempty
+    have inf_le_x : sInf s ≤ x := sInf_le x_in_s
+    have x_le_sup : x ≤ sSup s := le_sSup x_in_s
+    exact le_trans inf_le_x x_le_sup
+
+lemma sInf_lt_sSup {s : Set EReal} (s_nonempty : s.Nonempty) (s_notsingleton : ¬∃ x, s = {x}) :
+    sInf s < sSup s := by
+  -- We know that sInf s ≤ sSup s from above, so we after a bit of massaging,
+  -- we show that we only need to prove that sInf s = sSup s would yield a
+  -- singleton.
+  have inf_le_sup := sInf_le_sSup s_nonempty
+  by_contra h; push Not at h; rename' h => sup_le_inf
+  have inf_eq_sup := le_antisymm  inf_le_sup sup_le_inf
+  apply s_notsingleton
+  -- Now we show that if x ∈ s, since inf ≤ x and x ≤ sup, x = inf (= sup)
+  -- s is a subset of { inf }, so technically, a subsingleton.
+  have subsingleton : s ⊆ { sInf s } := by
+    intro x x_in_s
+    simp only [Set.mem_singleton_iff]
+    have inf_le_x := sInf_le x_in_s
+    have x_le_sup := le_sSup x_in_s
+    rw [<- inf_eq_sup] at x_le_sup
+    exact le_antisymm x_le_sup inf_le_x
+  -- Since, we know that s is not empty, the conclusion follows
+  have : s = ∅ ∨ s = { sInf s } := Set.subset_singleton_iff_eq.mp subsingleton
+  rcases this with s_empty | s_singleton
+  · exact absurd s_empty s_nonempty.ne_empty
+  · use sInf s
+
 theorem interval_iff_ordConnected (s : Set EReal) :
-  (∃ (I : Interval), s = I.toSet) ↔ s.OrdConnected := by
+  (∃ (i : Interval), s = i.toSet) ↔ s.OrdConnected := by
   constructor
-  · intro ⟨I, hI⟩
-    rw [Interval.toSet.eq_def] at hI
-    rw [hI]; clear hI
-    match I with
-    | .empty => simp only; exact Set.ordConnected_empty
-    | .ioo inf sup _ =>
-      dsimp only ; exact Set.ordConnected_Ioo
-    | .ioc inf sup _ =>
-      dsimp only ; exact Set.ordConnected_Ioc
-    | .ico inf sup _ =>
-      dsimp only ; exact Set.ordConnected_Ico
-    | .icc inf sup _ =>
-      dsimp only ; exact Set.ordConnected_Icc
-  · -- TODO: distinguish empty or not
-    -- if not empty, find inf and sup
-    -- show that only 4 cases are possible
-    sorry
+  · intro ⟨i, hi⟩
+    rw [Interval.toSet.eq_def] at hi
+    rw [hi]; clear hi
+    cases i <;> first
+      | exact Set.ordConnected_empty
+      | exact Set.ordConnected_empty
+      | exact Set.ordConnected_Ioo
+      | exact Set.ordConnected_Ioc
+      | exact Set.ordConnected_Ico
+      | exact Set.ordConnected_Icc
+  · intro s_ordConnected
+    cases em (s.Nonempty)
+    next s_nonempty =>
+      let inf := sInf s
+      let sup := sSup s
+      have inf_le_sup : inf ≤ sup := sInf_le_sSup s_nonempty
+      cases em (inf ∈ s) <;> cases em (sup ∈ s)
+      next inf_in_s b_in_s =>
+        use Interval.icc inf sup inf_le_sup
+        sorry
+      · sorry
+      · sorry
+      · sorry
+
+    next s_empty =>
+      push Not at s_empty
+      use Interval.empty
+      rw [Interval.toSet]
+      assumption
 
 
 
@@ -529,7 +584,9 @@ Length
 
 /-!
 Notes:
-- We need to special-case ∅.length since ∅.sup - ∅.inf = ⊥ - ⊤ = ⊥.
+- We need to special-case the definition of the length of ∅
+  since the expression in the normal case would lead otherwise to
+  ∅.length = ∅.sup - ∅.inf = ⊥ - ⊤ = ⊥.
 - [⊥, ⊥].length and [⊤, ⊤].length are junk values
   (that keep the definition as simple as possible)
 -/
