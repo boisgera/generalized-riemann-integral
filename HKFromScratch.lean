@@ -654,7 +654,6 @@ theorem interval_iff_ordConnected (s : Set EReal) :
           intro x hx
           rw [Set.mem_setOf] at hx
           have ⟨inf_lt_x, x_lt_sup⟩ := hx; clear hx
-
           -- The idea: inf < x hence there is an element of s below x.
           rw [inf_eq] at inf_lt_x
           have ⟨a, a_in_s, a_lt_x⟩ : ∃ a ∈ s, a < x := sInf_lt_iff.mp inf_lt_x
@@ -706,10 +705,12 @@ As a consequence, we have:
 -/
 
 #check isOpen_Ioi
--- isOpen_Ioi.{u} {α : Type u} [TopologicalSpace α] [LinearOrder α] [ClosedIicTopology α] {a : α} : IsOpen (Set.Ioi a)
+-- isOpen_Ioi.{u} {α : Type u} [TopologicalSpace α] [LinearOrder α] [ClosedIicTopology α] {a : α}
+-- : IsOpen (Set.Ioi a)
 
 #check isOpen_Iio
--- isOpen_Ioi.{u} {α : Type u} [TopologicalSpace α] [LinearOrder α] [ClosedIicTopology α] {a : α} : IsOpen (Set.Ioi a)
+-- isOpen_Ioi.{u} {α : Type u} [TopologicalSpace α] [LinearOrder α] [ClosedIicTopology α] {a : α}
+-- : IsOpen (Set.Ioi a)
 
 
 
@@ -891,8 +892,10 @@ Cousin Lemma
 -/
 
 #check IsCompact.nonempty_iInter_of_directed_nonempty_isCompact_isClosed
--- IsCompact.nonempty_iInter_of_directed_nonempty_isCompact_isClosed.{u, v} {X : Type u} [TopologicalSpace X] {ι : Type v}
---   [hι : Nonempty ι] (t : ι → Set X) (htd : Directed (fun x1 x2 ↦ x1 ⊇ x2) t) (htn : ∀ (i : ι), (t i).Nonempty)
+-- IsCompact.nonempty_iInter_of_directed_nonempty_isCompact_isClosed.{u, v}
+--   {X : Type u} [TopologicalSpace X] {ι : Type v}
+--   [hι : Nonempty ι] (t : ι → Set X)
+--   (htd : Directed (fun x1 x2 ↦ x1 ⊇ x2) t) (htn : ∀ (i : ι), (t i).Nonempty)
 --   (htc : ∀ (i : ι), IsCompact (t i))
 --   (htcl : ∀ (i : ι), IsClosed (t i)) : (⋂ i, t i).Nonempty
 
@@ -906,7 +909,8 @@ theorem nonempty_iInter_of_antitone_nonempty_isClosed.{v}
     (htcl : ∀ (i : ι), IsClosed (t i)) : (⋂ i, t i).Nonempty :=
   have htc (i : ι) : IsCompact (t i) := IsClosed.isCompact (htcl i)
   have htd : Directed (fun x1 x2 ↦ x1 ⊇ x2) t := Antitone.directed_ge hta
-  IsCompact.nonempty_iInter_of_directed_nonempty_isCompact_isClosed t htd htn htc htcl
+  IsCompact.nonempty_iInter_of_directed_nonempty_isCompact_isClosed
+    t htd htn htc htcl
 
 /-!
 TODO: we need TaggedBoxes.cover and concept of taggedBoxes subordinate to a gauge
