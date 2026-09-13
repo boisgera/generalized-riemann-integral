@@ -492,7 +492,8 @@ lemma sInf_lt_sSup {s : Set EReal} (s_nonempty : s.Nonempty) (s_notsingleton : �
   have inf_eq_sup := le_antisymm  inf_le_sup sup_le_inf
   apply s_notsingleton
   -- Now we show that if x ∈ s, since inf ≤ x and x ≤ sup, x = inf (= sup)
-  -- s is a subset of { inf }, so technically, a subsingleton.
+  -- s is a subset of { inf }, so technically, a subsingleton and practically,
+  -- it's either empty or a singleton.
   have subsingleton : s ⊆ { sInf s } := by
     intro x x_in_s
     simp only [Set.mem_singleton_iff]
@@ -500,11 +501,33 @@ lemma sInf_lt_sSup {s : Set EReal} (s_nonempty : s.Nonempty) (s_notsingleton : �
     have x_le_sup := le_sSup x_in_s
     rw [<- inf_eq_sup] at x_le_sup
     exact le_antisymm x_le_sup inf_le_x
-  -- Since, we know that s is not empty, the conclusion follows
   have : s = ∅ ∨ s = { sInf s } := Set.subset_singleton_iff_eq.mp subsingleton
+  -- Since we know that s is not empty, the conclusion follows
   rcases this with s_empty | s_singleton
   · exact absurd s_empty s_nonempty.ne_empty
   · use sInf s
+
+/-- if the infimum of s does not belong to s, then s is not a singleton -/
+lemma not_singleton_of_sInf_notMem {s : Set EReal}
+    (sInf_notMem : sInf s ∉ s) (x : EReal) : s ≠ {x} := by
+  intro s_eq_singleton_x
+  have sInf_x_eq_x : sInf {x} = x := sInf_singleton
+  rw [<- s_eq_singleton_x] at sInf_x_eq_x
+  rw [<- sInf_x_eq_x] at s_eq_singleton_x
+  have inf_in_singleton_inf := Set.mem_singleton (sInf s)
+  rw [<- s_eq_singleton_x] at inf_in_singleton_inf
+  contradiction
+
+/-- if the supremum of s does not belong to s, then s is not a singleton -/
+lemma not_singleton_of_sSup_notMem {s : Set EReal}
+    (sSup_notMem : sSup s ∉ s) (x : EReal) : s ≠ {x} := by
+  intro s_eq_singleton_x
+  have sSup_x_eq_x : sSup {x} = x := sSup_singleton
+  rw [<- s_eq_singleton_x] at sSup_x_eq_x
+  rw [<- sSup_x_eq_x] at s_eq_singleton_x
+  have sup_in_singleton_sup := Set.mem_singleton (sSup s)
+  rw [<- s_eq_singleton_x] at sup_in_singleton_sup
+  contradiction
 
 theorem interval_iff_ordConnected (s : Set EReal) :
   (∃ (i : Interval), s = i.toSet) ↔ s.OrdConnected := by
@@ -522,17 +545,67 @@ theorem interval_iff_ordConnected (s : Set EReal) :
   · intro s_ordConnected
     cases em (s.Nonempty)
     next s_nonempty =>
-      let inf := sInf s
-      let sup := sSup s
+      set inf := sInf s with inf_eq
+      set sup := sSup s with sup_eq
       have inf_le_sup : inf ≤ sup := sInf_le_sSup s_nonempty
       cases em (inf ∈ s) <;> cases em (sup ∈ s)
-      next inf_in_s b_in_s =>
+      -- 4 cases to consider: do we have inf ∈ s? and in each subcase sup ∈ s?
+      -- The easiest case is inf ∈ s and sup ∈ s.
+      next inf_in_s sup_in_s =>
+        -- We intend to prove that s = [inf, sup]
         use Interval.icc inf sup inf_le_sup
-        sorry
-      · sorry
-      · sorry
-      · sorry
+        rw [Interval.toSet]
+        -- We decompose this goal into s ⊆ [inf, sup] and [inf, sup] ⊆ s
+        apply Set.Subset.antisymm
+        · intro x x_in_s
+          rw [Set.Icc]
+          simp only [Set.mem_setOf]
+          constructor <;> (first | apply sInf_le | apply le_sSup) <;> assumption
+        · exact s_ordConnected.out inf_in_s sup_in_s
+      · sorry -- TODO: hybrid the methods used below
+      · sorry -- TODO: hybrid the methods used below
+      next inf_not_in_s sup_not_in_s =>
+        -- We intend to prove that s = ]inf, sup[
+        have inf_lt_sup : inf < sup := by
+          apply sInf_lt_sSup
+          · exact s_nonempty
+          · intro ⟨x, s_eq_singleton_x⟩
+            have sInf_notMem : sInf s ∉ s := by
+              rw [<- inf_eq]
+              exact inf_not_in_s
+            exact not_singleton_of_sInf_notMem sInf_notMem x s_eq_singleton_x
+        use Interval.ioo inf sup inf_lt_sup
+        rw [Interval.toSet]
+        apply Set.Subset.antisymm
+        · intro x x_in_s
+          rw [Set.Ioo, Set.mem_setOf]
+          constructor
+          · apply lt_of_le_of_ne
+            · rw [inf_eq]
+              exact sInf_le x_in_s
+            · intro inf_eq_x
+              rw [<- inf_eq_x] at x_in_s
+              exact absurd x_in_s inf_not_in_s
+          · sorry -- TODO (similar to above)
+        · rw [Set.Ioo]
+          intro x hx
+          rw [Set.mem_setOf] at hx
+          have ⟨inf_lt_x, x_lt_sup⟩ := hx; clear hx
 
+          -- The idea: inf < x hence there is an element of s below x.
+          rw [inf_eq] at inf_lt_x
+          have ⟨a, a_in_s, a_lt_x⟩ : ∃ a ∈ s, a < x := sInf_lt_iff.mp inf_lt_x
+          -- same thing for x and the sup
+          rw [sup_eq] at x_lt_sup
+          have ⟨b, b_in_s, x_lt_b⟩ : ∃ b ∈ s, x < b := lt_sSup_iff.mp x_lt_sup
+          -- by order-connectedness, [a, b] ⊆ s
+          have icc_a_b_subset_s : Set.Icc a b ⊆ s := s_ordConnected.out a_in_s b_in_s
+          -- hence x ∈ s
+          rw [Set.Icc] at icc_a_b_subset_s
+          exact icc_a_b_subset_s ⟨
+            show a ≤ x from le_of_lt a_lt_x,
+            show x ≤ b from le_of_lt x_lt_b
+          ⟩
     next s_empty =>
       push Not at s_empty
       use Interval.empty
