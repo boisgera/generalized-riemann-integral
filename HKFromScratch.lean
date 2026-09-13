@@ -562,8 +562,66 @@ theorem interval_iff_ordConnected (s : Set EReal) :
           simp only [Set.mem_setOf]
           constructor <;> (first | apply sInf_le | apply le_sSup) <;> assumption
         · exact s_ordConnected.out inf_in_s sup_in_s
-      · sorry -- TODO: hybrid the methods used below
-      · sorry -- TODO: hybrid the methods used below
+      next inf_in_s sup_not_in_s =>
+        -- We intend to prove that s = [inf, sup[
+        have inf_lt_sup : inf < sup := by
+          apply lt_of_le_of_ne inf_le_sup
+          intro inf_eq_sup
+          rw [inf_eq_sup] at inf_in_s
+          exact absurd inf_in_s sup_not_in_s
+        use Interval.ico inf sup inf_lt_sup
+        rw [Interval.toSet]
+        apply Set.Subset.antisymm
+        · intro x x_in_s
+          rw [Set.Ico, Set.mem_setOf]
+          constructor
+          · rw [inf_eq]
+            exact sInf_le x_in_s
+          · apply lt_of_le_of_ne
+            · rw [sup_eq]
+              exact le_sSup x_in_s
+            · intro x_eq_sup
+              rw [x_eq_sup] at x_in_s
+              exact absurd x_in_s sup_not_in_s
+        · rw [Set.Ico]
+          intro x hx
+          rw [Set.mem_setOf] at hx
+          have ⟨inf_le_x, x_lt_sup⟩ := hx; clear hx
+          rw [sup_eq] at x_lt_sup
+          have ⟨b, b_in_s, x_lt_b⟩ : ∃ b ∈ s, x < b := lt_sSup_iff.mp x_lt_sup
+          have icc_inf_b_subset_s : Set.Icc inf b ⊆ s := s_ordConnected.out inf_in_s b_in_s
+          rw [Set.Icc] at icc_inf_b_subset_s
+          exact icc_inf_b_subset_s ⟨inf_le_x, le_of_lt x_lt_b⟩
+      next inf_not_in_s sup_in_s =>
+        -- We intend to prove that s = ]inf, sup]
+        have inf_lt_sup : inf < sup := by
+          apply lt_of_le_of_ne inf_le_sup
+          intro inf_eq_sup
+          rw [<- inf_eq_sup] at sup_in_s
+          exact absurd sup_in_s inf_not_in_s
+        use Interval.ioc inf sup inf_lt_sup
+        rw [Interval.toSet]
+        apply Set.Subset.antisymm
+        · intro x x_in_s
+          rw [Set.Ioc, Set.mem_setOf]
+          constructor
+          · apply lt_of_le_of_ne
+            · rw [inf_eq]
+              exact sInf_le x_in_s
+            · intro inf_eq_x
+              rw [<- inf_eq_x] at x_in_s
+              exact absurd x_in_s inf_not_in_s
+          · rw [sup_eq]
+            exact le_sSup x_in_s
+        · rw [Set.Ioc]
+          intro x hx
+          rw [Set.mem_setOf] at hx
+          have ⟨inf_lt_x, x_le_sup⟩ := hx; clear hx
+          rw [inf_eq] at inf_lt_x
+          have ⟨a, a_in_s, a_lt_x⟩ : ∃ a ∈ s, a < x := sInf_lt_iff.mp inf_lt_x
+          have icc_a_sup_subset_s : Set.Icc a sup ⊆ s := s_ordConnected.out a_in_s sup_in_s
+          rw [Set.Icc] at icc_a_sup_subset_s
+          exact icc_a_sup_subset_s ⟨le_of_lt a_lt_x, x_le_sup⟩
       next inf_not_in_s sup_not_in_s =>
         -- We intend to prove that s = ]inf, sup[
         have inf_lt_sup : inf < sup := by
@@ -586,7 +644,12 @@ theorem interval_iff_ordConnected (s : Set EReal) :
             · intro inf_eq_x
               rw [<- inf_eq_x] at x_in_s
               exact absurd x_in_s inf_not_in_s
-          · sorry -- TODO (similar to above)
+          · apply lt_of_le_of_ne
+            · rw [sup_eq]
+              exact le_sSup x_in_s
+            · intro x_eq_sup
+              rw [x_eq_sup] at x_in_s
+              exact absurd x_in_s sup_not_in_s
         · rw [Set.Ioo]
           intro x hx
           rw [Set.mem_setOf] at hx
